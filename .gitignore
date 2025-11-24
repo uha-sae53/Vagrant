@@ -1,0 +1,15 @@
+# Vagrant
+.vagrant/
+*.log
+
+# VirtualBox
+*.vbox
+*.vdi
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*~
