@@ -1,0 +1,1 @@
+{"rsync":{"/vagrant":{"type":"rsync","nfs_version":"4","nfs_udp":false,"guestpath":"/vagrant","hostpath":"/home/id00l/Dev/SAE-ecommerce/Vagrant","disabled":false,"__vagrantfile":true,"owner":"vagrant","group":"vagrant"}}}
