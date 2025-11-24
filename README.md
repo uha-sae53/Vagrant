@@ -109,6 +109,7 @@ vagrant status    # Affiche l'état de toutes les VMs
 - **CPU** : 2 cores
 - **Logiciels** : MySQL Server
 - **IP** : 192.168.56.11
+- **Mot de passe root MySQL** : `vagrant` (à changer en production!)
 
 ### VM 3 - Serveur Application
 - **OS** : Ubuntu 20.04 LTS
@@ -122,8 +123,8 @@ vagrant status    # Affiche l'état de toutes les VMs
 Chaque VM est provisionnée automatiquement lors du premier démarrage :
 
 - **Serveur Web** : Installation et configuration d'Apache2, création d'une page d'accueil
-- **Serveur DB** : Installation de MySQL Server
-- **Serveur App** : Installation de Node.js et npm
+- **Serveur DB** : Installation et sécurisation de MySQL Server (mot de passe root: `vagrant`)
+- **Serveur App** : Installation de Node.js 18.x et npm
 
 Pour re-provisionner une VM :
 
@@ -154,6 +155,23 @@ Pour personnaliser la configuration, modifiez le fichier `Vagrantfile` :
 ### Erreurs de provisioning
 - Relancez le provisioning : `vagrant provision`
 - Détruisez et recréez la VM : `vagrant destroy <nom> && vagrant up <nom>`
+
+## 🔒 Sécurité
+
+### ⚠️ Avertissement pour un usage en production
+
+Cette configuration est conçue pour le **développement et l'apprentissage**. Pour un usage en production :
+
+1. **Changez le mot de passe MySQL** : Le mot de passe par défaut est `vagrant`
+2. **Configurez SSL/TLS** : Pour chiffrer les communications
+3. **Mettez en place un firewall** : Utilisez ufw ou iptables
+4. **Utilisez des clés SSH** : Plutôt que les mots de passe par défaut
+5. **Activez les mises à jour automatiques** : Pour les correctifs de sécurité
+
+### Informations d'accès par défaut
+
+- **MySQL root password** : `vagrant`
+- **SSH** : Utilisez `vagrant ssh <nom-vm>` (authentification automatique)
 
 ## 📚 Ressources
 
