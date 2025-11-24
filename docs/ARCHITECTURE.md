@@ -165,7 +165,7 @@ Pour des configurations plus complexes, vous pouvez utiliser :
 Par défaut, Vagrant synchronise le dossier du projet :
 
 ```
-Hôte: /home/runner/work/Vagrant/Vagrant
+Hôte: <chemin_du_projet>/Vagrant (ex: /home/user/projects/Vagrant)
 VM: /vagrant
 ```
 

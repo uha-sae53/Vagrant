@@ -14,7 +14,6 @@
 # Temporary files
 *.tmp
 *.temp
-.DS_Store
 Thumbs.db
 
 # Backup files

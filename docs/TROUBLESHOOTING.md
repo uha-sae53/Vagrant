@@ -359,7 +359,7 @@ vboxmanage --version
 vagrant up web --debug > vagrant.log 2>&1
 
 # Vérifier l'état de toutes les VMs
-vagrant global-status
+vagrant global-status --prune
 
 # Vérifier les plugins installés
 vagrant plugin list
