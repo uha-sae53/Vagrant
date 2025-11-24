@@ -55,7 +55,9 @@ Vagrant.configure("2") do |config|
       apt-get update
       export DEBIAN_FRONTEND=noninteractive
       
-      # Installation de MySQL avec mot de passe root sécurisé
+      # NOTE: Mot de passe en clair uniquement pour environnement de développement
+      # En production, utilisez des variables d'environnement ou Vault
+      # Installation de MySQL avec mot de passe root
       debconf-set-selections <<< 'mysql-server mysql-server/root_password password vagrant'
       debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password vagrant'
       apt-get install -y mysql-server
@@ -63,7 +65,8 @@ Vagrant.configure("2") do |config|
       systemctl enable mysql
       systemctl start mysql
       
-      # Sécurisation basique de MySQL
+      # Sécurisation basique de MySQL (équivalent de mysql_secure_installation)
+      # NOTE: Mot de passe en ligne de commande acceptable en dev/test
       mysql -u root -pvagrant <<-SQL
         DELETE FROM mysql.user WHERE User='';
         DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
@@ -91,11 +94,13 @@ SQL
       apt-get update
       apt-get install -y curl gnupg
       
+      # NOTE: Script NodeSource téléchargé via HTTPS (vérifié par TLS)
+      # Pour une sécurité accrue en production, vérifiez aussi la signature GPG
       # Téléchargement et vérification du script NodeSource
       curl -fsSL https://deb.nodesource.com/setup_18.x -o /tmp/nodesource_setup.sh
       
       # Vérification que le script a été téléchargé correctement
-      if [ -f /tmp/nodesource_setup.sh ]; then
+      if [ -f /tmp/nodesource_setup.sh ] && [ -s /tmp/nodesource_setup.sh ]; then
         bash /tmp/nodesource_setup.sh
         apt-get install -y nodejs
         rm /tmp/nodesource_setup.sh
