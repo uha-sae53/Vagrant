@@ -1,1 +1,1 @@
-{"rsync":{"/vagrant":{"type":"rsync","nfs_version":"4","nfs_udp":false,"guestpath":"/vagrant","hostpath":"/home/id00l/Dev/SAE-ecommerce/Vagrant","disabled":false,"__vagrantfile":true,"owner":"vagrant","group":"vagrant"}}}
+{"nfs":{"/vagrant":{"type":"nfs","nfs_version":"4","nfs_udp":false,"guestpath":"/vagrant","hostpath":"/home/id00l/Dev/SAE-ecommerce/Vagrant","disabled":false,"__vagrantfile":true,"map_uid":1000,"map_gid":1000,"uuid":"422883396","linux__nfs_options":["rw","no_subtree_check","all_squash","anonuid=1000","anongid=1000","fsid=422883396"]}}}
