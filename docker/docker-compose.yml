@@ -1,0 +1,70 @@
+services:
+  db_clients:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: clients # définir un mot de passe pour la base de donnée
+    volumes:
+      - db_clients:/var/lib/mysql
+  api_clients:
+    image: sae503/api_clients:latest # récupérer l'image GitHub après CD
+    restart: always
+    ports:
+      - 8000:8000 # redéfinir les ports
+    depends_on:
+      - db_clients
+
+  db_catalogue:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: catalogue # définir un mot de passe pour la base de donnée
+    volumes:
+      - db_catalogue:/var/lib/mysql
+  api_catalogue:
+    image: sae503/api_catalogue:latest # récupérer l'image GitHub après CD
+    restart: always
+    ports:
+      - 8001:8000 # redéfinir les ports
+    depends_on:
+      - db_catalogue
+
+  api_panier:
+    image: sae503/api_panier:latest # récupérer l'image GitHub après CD
+    restart: always
+    ports:
+      - 8002:8000 # redéfinir les ports
+
+  db_commandes:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: commandes # définir un mot de passe pour la base de donnée
+    volumes:
+      - db_commandes:/var/lib/mysql
+  api_commandes:
+    image: sae503/api_commandes:latest # récupérer l'image GitHub après CD
+    restart: always
+    ports:
+      - 8003:8000 # redéfinir les ports
+    depends_on:
+      - db_commandes
+
+  frontend:
+    image: sae503/frontend:latest # récupérer l'image GitHub après CD
+    restart: always
+    ports:
+      - 80:8000 # redéfinir les ports
+    depends_on:
+      - api_clients
+      - api_catalogue
+      - api_commandes
+
+volumes:
+  db_clients:
+  db_catalogue:
+  db_commandes:
+
+networks:
+  prod:
+    driver: bridge
