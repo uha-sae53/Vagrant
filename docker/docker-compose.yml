@@ -7,63 +7,130 @@ services:
     volumes:
       - db_clients:/var/lib/mysql
   api_clients:
-    image: sae503/api_clients:latest # récupérer l'image GitHub après CD
+    image: ghcr.io/uha-sae53/api-clients/client-manager:95c9669cb56bf722380273db3771c9b0d5cf9c4c
     restart: always
     ports:
-      - 8000:8000 # redéfinir les ports
+      - 8000:8000 
     depends_on:
       - db_clients
 
-  db_catalogue:
-    image: mariadb:latest
+
+  # Docker Compose configuration for ELK Stack (Elasticsearch, Kibana, Filebeat)
+  # 
+  # This stack provides a complete log collection and visualization solution:
+  #
+  # - Elasticsearch: A distributed search and analytics engine that stores and indexes logs
+  #   It provides powerful full-text search capabilities and serves as the central data store
+  #   for the ELK stack. Handles data persistence, indexing, and query execution.
+  #
+  # - Kibana: A web-based visualization and exploration tool for Elasticsearch
+  #   Provides dashboards, charts, and graphs to visualize log data stored in Elasticsearch.
+  #   Offers a user-friendly interface for searching, analyzing, and monitoring logs in real-time.
+  #
+  # - Filebeat: A lightweight log shipper that collects and forwards log files
+  #   Monitors specified log files or locations, reads log entries, and sends them to Elasticsearch.
+  #   Acts as an agent on servers to centralize log data with minimal resource overhead.
+  #
+  # Data flow: Filebeat → Elasticsearch → Kibana
+  # Filebeat collects logs, sends them to Elasticsearch for storage/indexing, 
+  # and Kibana provides visualization of the indexed data.
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: catalogue # définir un mot de passe pour la base de donnée
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     volumes:
-      - db_catalogue:/var/lib/mysql
-  api_catalogue:
-    image: sae503/api_catalogue:latest # récupérer l'image GitHub après CD
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - prod
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
     restart: always
     ports:
-      - 8001:8000 # redéfinir les ports
-    depends_on:
-      - db_catalogue
-
-  api_panier:
-    image: sae503/api_panier:latest # récupérer l'image GitHub après CD
-    restart: always
-    ports:
-      - 8002:8000 # redéfinir les ports
-
-  db_commandes:
-    image: mariadb:latest
-    restart: always
+      - 5601:5601
     environment:
-      MARIADB_ROOT_PASSWORD: commandes # définir un mot de passe pour la base de donnée
-    volumes:
-      - db_commandes:/var/lib/mysql
-  api_commandes:
-    image: sae503/api_commandes:latest # récupérer l'image GitHub après CD
-    restart: always
-    ports:
-      - 8003:8000 # redéfinir les ports
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     depends_on:
-      - db_commandes
+      - elasticsearch
+    networks:
+      - prod
 
-  frontend:
-    image: sae503/frontend:latest # récupérer l'image GitHub après CD
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
     restart: always
-    ports:
-      - 80:8000 # redéfinir les ports
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: filebeat -e -strict.perms=false
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     depends_on:
-      - api_clients
-      - api_catalogue
-      - api_commandes
+      - elasticsearch
+    networks:
+      - prod
+
+
+########################## RESTE DES SERVICES (DÉCOMMENTER LORS DE L'UTILISATION) ##########################
+
+  # db_catalogue:
+  #   image: mariadb:latest
+  #   restart: always
+  #   environment:
+  #     MARIADB_ROOT_PASSWORD: catalogue # définir un mot de passe pour la base de donnée
+  #   volumes:
+  #     - db_catalogue:/var/lib/mysql
+  # api_catalogue:
+  #   image: sae503/api_catalogue:latest # récupérer l'image GitHub après CD
+  #   restart: always
+  #   ports:
+  #     - 8001:8000 # redéfinir les ports
+  #   depends_on:
+  #     - db_catalogue
+
+  # api_panier:
+  #   image: sae503/api_panier:latest # récupérer l'image GitHub après CD
+  #   restart: always
+  #   ports:
+  #     - 8002:8000 # redéfinir les ports
+
+
+  # db_commandes:
+  #   image: mariadb:latest
+  #   restart: always
+  #   environment:
+  #     MARIADB_ROOT_PASSWORD: commandes # définir un mot de passe pour la base de donnée
+  #   volumes:
+  #     - db_commandes:/var/lib/mysql
+  # api_commandes:
+  #   image: sae503/api_commandes:latest # récupérer l'image GitHub après CD
+  #   restart: always
+  #   ports:
+  #     - 8003:8000 # redéfinir les ports
+  #   depends_on:
+  #     - db_commandes
+
+  # frontend:
+  #   image: sae503/frontend:latest # récupérer l'image GitHub après CD
+  #   restart: always
+  #   ports:
+  #     - 80:8000 # redéfinir les ports
+  #   depends_on:
+  #     - api_clients
+  #     - api_catalogue
+  #     - api_commandes
+
+
 
 volumes:
   db_clients:
   db_catalogue:
   db_commandes:
+  elasticsearch_data:
 
 networks:
   prod:
