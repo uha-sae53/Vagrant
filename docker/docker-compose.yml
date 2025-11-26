@@ -3,76 +3,35 @@ services:
     image: mariadb:latest
     restart: always
     environment:
-      MARIADB_ROOT_PASSWORD: clients # définir un mot de passe pour la base de donnée
+      MARIADB_ROOT_PASSWORD: clients
     volumes:
       - db_clients:/var/lib/mysql
+    networks:
+      - prod
+    labels:
+      - "service=db_clients"
+      - "type=database"
+
   api_clients:
-    image: ghcr.io/uha-sae53/api-clients/client-manager:95c9669cb56bf722380273db3771c9b0d5cf9c4c
+    image: ghcr.io/uha-sae53/api-clients/client-manager:latest
     restart: always
     ports:
       - 8000:8000 
     depends_on:
       - db_clients
-
-
-  # Docker Compose configuration for ELK Stack (Elasticsearch, Kibana, Filebeat)
-  # 
-  # This stack provides a complete log collection and visualization solution:
-  #
-  # - Elasticsearch: A distributed search and analytics engine that stores and indexes logs
-  #   It provides powerful full-text search capabilities and serves as the central data store
-  #   for the ELK stack. Handles data persistence, indexing, and query execution.
-  #
-  # - Kibana: A web-based visualization and exploration tool for Elasticsearch
-  #   Provides dashboards, charts, and graphs to visualize log data stored in Elasticsearch.
-  #   Offers a user-friendly interface for searching, analyzing, and monitoring logs in real-time.
-  #
-  # - Filebeat: A lightweight log shipper that collects and forwards log files
-  #   Monitors specified log files or locations, reads log entries, and sends them to Elasticsearch.
-  #   Acts as an agent on servers to centralize log data with minimal resource overhead.
-  #
-  # Data flow: Filebeat → Elasticsearch → Kibana
-  # Filebeat collects logs, sends them to Elasticsearch for storage/indexing, 
-  # and Kibana provides visualization of the indexed data.
-
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    restart: always
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
       - prod
+    labels:
+      - "service=api_clients"
+      - "type=api"
+      - "log_format=gunicorn"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    restart: always
-    ports:
-      - 5601:5601
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    networks:
-      - prod
 
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.11.0
-    restart: always
-    user: root
-    volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command: filebeat -e -strict.perms=false
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    networks:
-      - prod
 
 
 ########################## RESTE DES SERVICES (DÉCOMMENTER LORS DE L'UTILISATION) ##########################
@@ -125,6 +84,70 @@ services:
   #     - api_commandes
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+
+  # ELK Stack
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - prod
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    restart: always
+    ports:
+      - 5601:5601
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - prod
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    restart: always
+    user: root
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./filebeat/config.yaml:/usr/share/filebeat/filebeat.yml:ro
+    command: ["filebeat", "-e", "-strict.perms=false"]
+    depends_on:
+      - elasticsearch
+    networks:
+      - prod
 
 volumes:
   db_clients:

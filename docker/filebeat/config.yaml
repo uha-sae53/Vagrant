@@ -1,0 +1,72 @@
+filebeat.inputs:
+  # Collecte des logs de tous les conteneurs Docker
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    
+    # Configuration pour parser les logs JSON
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: log
+    
+    processors:
+      # Ajouter les métadonnées Docker (nom du conteneur, labels, etc.)
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+          match_fields: ["container.id"]
+          labels.dedot: true
+      
+      # Parser le message pour extraire le timestamp et le niveau de log
+      - dissect:
+          tokenizer: "[%{timestamp}] [%{process_id}] [%{log_level}] %{message}"
+          field: "message"
+          target_prefix: "gunicorn"
+          ignore_failure: true
+      
+      # Ajouter des champs personnalisés
+      - add_fields:
+          target: ''
+          fields:
+            environment: production
+            project: sae-ecommerce
+      
+      # Renommer les champs pour une meilleure lisibilité
+      - rename:
+          fields:
+            - from: "container.name"
+              to: "service_name"
+          ignore_missing: true
+      
+      # Nettoyer les champs inutiles pour réduire la taille
+      - drop_fields:
+          fields: 
+            - "agent.ephemeral_id"
+            - "agent.id" 
+            - "ecs.version"
+            - "host.name"
+            - "input.type"
+          ignore_missing: true
+
+# Configuration de sortie vers Elasticsearch
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  # Index avec nom plus explicite et rotation quotidienne
+  index: "docker-logs-%{+yyyy.MM.dd}"
+  
+# Configuration de l'index template
+setup.template.name: "docker-logs"
+setup.template.pattern: "docker-logs-*"
+setup.ilm.enabled: false
+
+# Permettre à Filebeat de créer les index templates et dashboards dans Kibana
+setup.kibana:
+  host: "kibana:5601"
+
+# Niveau de logs de Filebeat lui-même
+logging.level: info
+logging.to_files: false
+logging.to_stderr: true
+
+# Métriques internes de Filebeat (optionnel)
+monitoring.enabled: false
