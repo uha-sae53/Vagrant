@@ -72,7 +72,6 @@ services:
     depends_on:
       - api_clients
       - api_catalogue
-      - api_commandes
 
     
   # ELK Stack
