@@ -1,28 +1,31 @@
 services:
-  db_clients:
+  dbclients:
     image: mariadb:latest
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: clients
+      MARIADB_DATABASE: clients
+    ports:
+      - 3306:3306
     volumes:
-      - db_clients:/var/lib/mysql
+      - dbclients:/var/lib/mysql
     networks:
       - prod
     labels:
-      - "service=db_clients"
+      - "service=dbclients"
       - "type=database"
 
-  api_clients:
+  apiclients:
     image: ghcr.io/uha-sae53/api-clients/client-manager:latest
     restart: always
     ports:
       - 8000:8000 
     depends_on:
-      - db_clients
+      - dbclients
     networks:
       - prod
     labels:
-      - "service=api_clients"
+      - "service=apiclients"
       - "type=api"
       - "log_format=gunicorn"
     logging:
@@ -32,32 +35,35 @@ services:
         max-file: "3"
 
 
-  db_catalogue:
+  dbcatalogue:
     image: mariadb:latest
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: catalogue
+      MARIADB_DATABASE: catalogue
+    ports:
+      - 3307:3306
     volumes:
-      - db_catalogue:/var/lib/mysql
+      - dbcatalogue:/var/lib/mysql
     networks:
       - prod
     labels:
-      - "service=db_catalogue"
+      - "service=dbcatalogue"
       - "type=database"
 
-  api_catalogue:
+  apicatalogue:
     image: ghcr.io/uha-sae53/api-clients/catalogue-manager:latest
     restart: always
     ports:
       - 8001:8000
     depends_on:
-      - db_catalogue
+      - dbcatalogue
     networks:
       - prod
     labels:
-      - "service=api_catalogue"
+      - "service=apicatalogue"
       - "type=api"
-      - "log_format=gunicorn"
+      - "logformat=gunicorn"
     logging:
       driver: "json-file"
       options:
@@ -68,10 +74,12 @@ services:
     image: nginx:latest
     restart: always
     ports:
-      - 8004:8000
+      - 8004:80
     depends_on:
-      - api_clients
-      - api_catalogue
+      - apiclients
+      - apicatalogue
+    networks:
+      - prod
 
     
   # ELK Stack
@@ -114,16 +122,13 @@ services:
       - prod
 
 volumes:
-  db_clients:
-  db_catalogue:
-  #db_commandes:
-  #db_panier:
+  dbclients:
+  dbcatalogue:
   elasticsearch_data:
 
 networks:
   prod:
     driver: bridge
-
 
   # api_panier:
   #   image: sae503/api_panier:latest # récupérer l'image GitHub après CD

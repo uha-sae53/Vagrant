@@ -56,16 +56,49 @@ if [[ "$HOSTNAME" == "master" ]]; then
     sudo -u vagrant kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 
     echo "[6] Génération du token pour workers"
-    kubeadm token create --print-join-command > /vagrant/join.sh
+    # Supprimer les anciens fichiers pour éviter les conflits
+    rm -f /vagrant/join.sh /vagrant/.master-ready
+    
+    # Créer un nouveau token avec durée de vie de 24h (au lieu de 2h par défaut)
+    kubeadm token create --ttl 24h --print-join-command > /vagrant/join.sh
     chmod +x /vagrant/join.sh
+    
+    # Créer un fichier flag pour indiquer que le master est complètement prêt
+    echo "Master initialized at $(date)" > /vagrant/.master-ready
+    echo "[Master] Prêt - les workers peuvent maintenant rejoindre le cluster"
 
 elif [[ "$HOSTNAME" == slave-* ]]; then
 
-    echo "[Worker] En attente du fichier join.sh..."
+    echo "[Worker] Attente de l'initialisation complète du master..."
+    # Attendre que le master crée le fichier flag
+    WAIT_COUNT=0
+    while [ ! -f /vagrant/.master-ready ]; do
+        echo "[Worker] Master pas encore prêt (attente ${WAIT_COUNT}s)..."
+        sleep 10
+        WAIT_COUNT=$((WAIT_COUNT + 10))
+        if [ $WAIT_COUNT -gt 600 ]; then
+            echo "[Worker] ERREUR: Timeout - le master n'est pas prêt après 10 minutes"
+            exit 1
+        fi
+    done
+    
+    echo "[Worker] Master prêt détecté, attente du fichier join.sh..."
     while [ ! -f /vagrant/join.sh ]; do
+        echo "[Worker] Fichier join.sh pas encore disponible..."
         sleep 5
     done
-
-    sleep 5
+    
+    # Attendre quelques secondes supplémentaires pour la propagation du token dans le cluster
+    echo "[Worker] Attente de 15 secondes pour la propagation complète du token..."
+    sleep 15
+    
+    echo "[Worker] Jonction au cluster Kubernetes..."
     bash /vagrant/join.sh
+    
+    if [ $? -eq 0 ]; then
+        echo "[Worker] ✓ Jonction réussie au cluster!"
+    else
+        echo "[Worker] ✗ Échec de la jonction au cluster"
+        exit 1
+    fi
 fi

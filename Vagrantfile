@@ -9,13 +9,13 @@ Vagrant.configure("2") do |config|
   # Script commun pour toutes les VMs
   config.vm.provision "shell", path: "provision.sh"
 
-  # MASTER
-  config.vm.define "vm-master" do |vm|
+  # MASTER - primary: true pour forcer le démarrage en premier lors de "vagrant up"
+  config.vm.define "vm-master", primary: true do |vm|
     vm.vm.network "private_network", ip: "192.168.56.10"
     vm.vm.hostname = "master"
   end
 
-  # WORKERS
+  # WORKERS - Démarrent automatiquement après le master grâce à l'ordre de définition
   (1..2).each do |i|
     config.vm.define "vm-slave-#{i}" do |vm|
       vm.vm.network "private_network", ip: "192.168.56.1#{i}"

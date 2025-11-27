@@ -23,11 +23,50 @@ vagrant plugin install vagrant-libvirt
 
 ## Utilisation
 
-Pour démarrer l'infrastructure :
+### 🚀 Utilisation avec le script d'aide (Recommandé)
+
+Le script `cluster.sh` simplifie la gestion du cluster Kubernetes :
 
 ```bash
-vagrant up
+# Démarrer le cluster (master puis workers)
+./cluster.sh up
+
+# Vérifier le statut
+./cluster.sh status
+
+# Redémarrer le cluster
+./cluster.sh restart
+
+# Détruire le cluster
+./cluster.sh destroy
+
+# Se connecter au master
+./cluster.sh ssh-master
+
+# Se connecter aux workers
+./cluster.sh ssh-worker1
+./cluster.sh ssh-worker2
+
+# Nettoyer les fichiers de jonction
+./cluster.sh clean
 ```
+
+**Avantage** : Le script garantit le bon ordre de démarrage (master d'abord, workers ensuite) et évite les problèmes de token expiré.
+
+### 📝 Utilisation manuelle avec Vagrant
+
+Pour démarrer l'infrastructure manuellement :
+
+```bash
+# Démarrer uniquement le master
+vagrant up vm-master
+
+# Attendre que le master soit complètement initialisé (30-60 secondes)
+# Puis démarrer les workers
+vagrant up vm-slave-1 vm-slave-2
+```
+
+⚠️ **Important** : Ne pas utiliser `vagrant up` sans arguments car cela démarre les VMs en parallèle, ce qui peut causer des erreurs de jonction des workers (token expiré ou non disponible).
 
 Pour arrêter les machines virtuelles :
 
@@ -38,7 +77,53 @@ vagrant halt
 Pour supprimer l'infrastructure :
 
 ```bash
-vagrant destroy
+vagrant destroy -f
+```
+
+### 🔍 Vérifier le cluster
+
+Une fois toutes les VMs démarrées, vérifiez l'état du cluster :
+
+```bash
+vagrant ssh vm-master -c 'kubectl get nodes'
+```
+
+Vous devriez voir les 3 nœuds en état `Ready` :
+```
+NAME       STATUS   ROLES           AGE   VERSION
+master     Ready    control-plane   2m    v1.28.x
+slave-1    Ready    <none>          1m    v1.28.x
+slave-2    Ready    <none>          1m    v1.28.x
+```
+
+## Dépannage
+
+### Erreur : "could not find a JWS signature in the cluster-info ConfigMap"
+
+Cette erreur se produit lorsque les workers tentent de rejoindre le cluster avant que le master ne soit complètement initialisé, ou si le token a expiré.
+
+**Solution** :
+1. Détruire et recréer le cluster avec le bon ordre :
+   ```bash
+   ./cluster.sh restart
+   ```
+
+2. Ou manuellement :
+   ```bash
+   vagrant destroy -f
+   vagrant up vm-master
+   # Attendre 30-60 secondes
+   vagrant up vm-slave-1 vm-slave-2
+   ```
+
+### Vérifier les logs de provisioning
+
+```bash
+# Logs du master
+vagrant ssh vm-master -c 'sudo journalctl -u kubelet -f'
+
+# Logs d'un worker
+vagrant ssh vm-slave-1 -c 'sudo journalctl -u kubelet -f'
 ```
 
 ## Explication du script `provision.sh`
