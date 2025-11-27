@@ -14,6 +14,12 @@ services:
     labels:
       - "service=dbclients"
       - "type=database"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   apiclients:
     image: ghcr.io/uha-sae53/api-clients/client-manager:latest
@@ -21,7 +27,8 @@ services:
     ports:
       - 8000:8000 
     depends_on:
-      - dbclients
+      dbclients:
+        condition: service_healthy
     networks:
       - prod
     labels:
@@ -50,6 +57,12 @@ services:
     labels:
       - "service=dbcatalogue"
       - "type=database"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   apicatalogue:
     image: ghcr.io/uha-sae53/api-clients/catalogue-manager:latest
@@ -57,7 +70,8 @@ services:
     ports:
       - 8001:8000
     depends_on:
-      - dbcatalogue
+      dbcatalogue:
+        condition: service_healthy
     networks:
       - prod
     labels:
