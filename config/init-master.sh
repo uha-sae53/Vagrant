@@ -17,13 +17,23 @@ chown vagrant:vagrant /home/vagrant/.kube/config
 echo "[Master] Installation de Flannel"
 sudo -u vagrant kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 
-echo "[Master] Generation du token pour les workers..."
+echo "[Master] Extraction de la commande de jonction..."
 rm -f /vagrant/join.sh /vagrant/.master-ready
 
+# Extraire la commande join de la sortie de kubeadm init (déjà exécuté)
+# Le token initial a une durée de vie de 24h par défaut
 kubeadm token create --ttl 24h --print-join-command > /vagrant/join.sh
 chmod +x /vagrant/join.sh
 
-echo "Master initialized at $(date)" > /vagrant/.master-ready
+# Attendre que le fichier soit bien écrit et synchronisé
+sleep 2
+sync
 
 echo "[Master] Initialisation terminee"
 echo "[Master] Les workers peuvent maintenant rejoindre le cluster"
+echo ""
+echo "[Master] Commande de jonction generee:"
+cat /vagrant/join.sh
+echo ""
+echo "Master initialized at $(date)" > /vagrant/.master-ready
+sync

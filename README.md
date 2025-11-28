@@ -32,12 +32,6 @@ Le provisioning utilise maintenant une **architecture modulaire** :
   - Facilite la maintenance et les modifications
   - Permet de réutiliser les scripts indépendamment
 
-**Avantages** :
-- ✅ Meilleure organisation du code
-- ✅ Facilité de maintenance
-- ✅ Scripts réutilisables
-- ✅ Configuration centralisée
-- ✅ Plus facile à tester
 
 ## Installation de Vagrant
 Instructions pour installer Vagrant sur différentes plateformes : https://www.vagrantup.com/docs/installation
@@ -101,7 +95,7 @@ vagrant up vm-master
 vagrant up vm-slave-1 vm-slave-2
 ```
 
-⚠️ **Important** : Ne pas utiliser `vagrant up` sans arguments car cela démarre les VMs en parallèle, ce qui peut causer des erreurs de jonction des workers (token expiré ou non disponible).
+**Important** : Ne pas utiliser `vagrant up` sans arguments car cela démarre les VMs en parallèle, ce qui peut causer des erreurs de jonction des workers (token expiré ou non disponible).
 
 Pour arrêter les machines virtuelles :
 
@@ -115,7 +109,7 @@ Pour supprimer l'infrastructure :
 vagrant destroy -f
 ```
 
-### 🔍 Vérifier le cluster
+### Vérifier le cluster
 
 Une fois toutes les VMs démarrées, vérifiez l'état du cluster :
 

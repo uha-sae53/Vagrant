@@ -16,14 +16,16 @@ while [ ! -f /vagrant/.master-ready ]; do
     fi
 done
 
-echo "[Worker] Master pret detecte, attente du fichier join.sh..."
-while [ ! -f /vagrant/join.sh ]; do
-    echo "[Worker] Fichier join.sh pas encore disponible..."
-    sleep 5
-done
+echo "[Worker] Master pret detecte, le fichier join.sh devrait etre disponible..."
 
-echo "[Worker] Attente de 15 secondes pour la propagation complete du token..."
-sleep 15
+if [ ! -s /vagrant/join.sh ]; then
+    echo "[Worker] ERREUR: join.sh n'existe pas ou est vide!"
+    exit 1
+fi
+
+echo "[Worker] Verification du contenu de join.sh:"
+cat /vagrant/join.sh
+echo ""
 
 echo "[Worker] Jonction au cluster Kubernetes..."
 bash /vagrant/join.sh

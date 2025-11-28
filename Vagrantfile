@@ -6,16 +6,16 @@ Vagrant.configure("2") do |config|
     libvirt.cpus = 2
   end
 
-  # Script commun pour toutes les VMs
+  # Shared folder for cluster coordination
+  config.vm.synced_folder ".", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
+
   config.vm.provision "shell", path: "provision.sh"
 
-  # MASTER - primary: true pour forcer le démarrage en premier lors de "vagrant up"
   config.vm.define "vm-master", primary: true do |vm|
     vm.vm.network "private_network", ip: "192.168.56.10"
     vm.vm.hostname = "master"
   end
 
-  # WORKERS - Démarrent automatiquement après le master grâce à l'ordre de définition
   (1..2).each do |i|
     config.vm.define "vm-slave-#{i}" do |vm|
       vm.vm.network "private_network", ip: "192.168.56.1#{i}"

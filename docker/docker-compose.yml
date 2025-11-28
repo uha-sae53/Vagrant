@@ -41,7 +41,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-
   dbcatalogue:
     image: mariadb:latest
     restart: always
@@ -95,15 +94,16 @@ services:
     networks:
       - prod
 
-    
   # ELK Stack
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     restart: always
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - 9200:9200
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     networks:
@@ -115,7 +115,7 @@ services:
     ports:
       - 5601:5601
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     depends_on:
       - elasticsearch
     networks:
@@ -125,9 +125,9 @@ services:
     image: docker.elastic.co/beats/filebeat:8.11.0
     restart: always
     user: root
+    ports:
+      - 5044:5044
     volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./filebeat/config.yaml:/usr/share/filebeat/filebeat.yml:ro
     command: ["filebeat", "-e", "-strict.perms=false"]
     depends_on:
@@ -176,7 +176,6 @@ networks:
   #       max-size: "10m"
   #       max-file: "3"
 
-
   # db_commandes:
   #   image: mariadb:latest
   #   restart: always
@@ -184,5 +183,3 @@ networks:
   #     MARIADB_ROOT_PASSWORD: commandes # définir un mot de passe pour la base de donnée
   #   volumes:
   #     - db_commandes:/var/lib/mysql
-
-
