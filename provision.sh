@@ -8,6 +8,11 @@ echo "=========================================="
 echo "  Provisioning de $HOSTNAME"
 echo "=========================================="
 
+if [[ "$HOSTNAME" == "master" ]]; then
+    echo "[Cleanup] Suppression des anciens fichiers de coordination..."
+    rm -f /vagrant/join.sh /vagrant/.master-ready
+fi
+
 chmod +x $CONFIG_DIR/*.sh
 
 echo ""
