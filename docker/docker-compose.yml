@@ -83,6 +83,46 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  api_commandes:
+    image: ghcr.io/uha-sae53/api-commandes/commandes-manager:f3ac14f32273be94065f21cd6e5a5f6beba2fe9d
+    restart: always
+    ports:
+      - 8002:8000
+    depends_on:
+      - db_commandes
+    networks:
+      - prod
+    labels:
+      - "service=api_commandes"
+      - "type=api"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db_commandes:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: commandes
+      MARIADB_DATABASE: commandes
+    ports:
+      - 3308:3306
+    volumes:
+      - db_commandes:/var/lib/mysql
+    networks:
+      - prod
+    labels:
+      - "service=db_commandes"
+      - "type=database"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   frontend:
     image: nginx:latest
     restart: always
@@ -138,6 +178,7 @@ services:
 volumes:
   dbclients:
   dbcatalogue:
+  db_commandes:
   elasticsearch_data:
 
 networks:
@@ -157,29 +198,3 @@ networks:
   #     MARIADB_ROOT_PASSWORD: panier # définir un mot de passe pour la base
   #   volumes:
   #     - db_panier:/var/lib/mysql
-
-  # api_commandes:
-  #   image: ghcr.io/uha-sae53/api-clients/catalogue-manager:latest
-  #   restart: always
-  #   ports:
-  #     - 8001:8000
-  #   depends_on:
-  #     - db_commandes
-  #   networks:
-  #     - prod
-  #   labels:
-  #     - "service=api_commandes"
-  #     - "type=api"
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
-
-  # db_commandes:
-  #   image: mariadb:latest
-  #   restart: always
-  #   environment:
-  #     MARIADB_ROOT_PASSWORD: commandes # définir un mot de passe pour la base de donnée
-  #   volumes:
-  #     - db_commandes:/var/lib/mysql
