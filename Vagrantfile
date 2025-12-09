@@ -8,7 +8,6 @@ Vagrant.configure("2") do |config|
     libvirt.cpu_mode = "host-passthrough"
   end
 
-  # NFS pour synchronisation temps réel entre VMs (nécessite mot de passe sudo)
   config.vm.synced_folder ".", "/vagrant", type: "nfs", nfs_version: 4, nfs_udp: false
 
   config.vm.provision "shell", path: "provision.sh"

@@ -1,2 +1,11 @@
 manifests/
 .vagrant/
+.kube/
+*.log
+*.tmp
+*.swp
+*.bak
+.DS_Store
+.idea/
+.master-ready
+join.sh
