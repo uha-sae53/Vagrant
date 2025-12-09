@@ -42,14 +42,6 @@ Installation du plugin vagrant-reload (permet de redémarrer une VM durant le pr
 
 ```bash
 vagrant plugin install vagrant-reload
-Education Benefits
-You have a current student coupon applied. Find more information on your benefits here!
-￼
-Start an application
-Coupon applied
-Expires in almost 2 years
-Approved on December 09, 2025
-Application Type: Student
 
 ```
 
