@@ -19,7 +19,7 @@ Vagrant/
 │   ├── init-master.sh      # Initialisation du master
 │   └── join-worker.sh      # Jonction des workers
 └── docker/                  # Configuration Docker Compose pour les services
-    └── docker-compose.yml
+  └── docker-compose.yml
 ```
 
 ### Architecture modulaire
@@ -31,7 +31,6 @@ Le provisioning utilise maintenant une **architecture modulaire** :
   - Chaque script a une responsabilité unique et claire
   - Facilite la maintenance et les modifications
   - Permet de réutiliser les scripts indépendamment
-
 
 ## Installation de Vagrant
 Instructions pour installer Vagrant sur différentes plateformes : https://www.vagrantup.com/docs/installation
@@ -49,6 +48,86 @@ Installation du module pour utiliser Vagrant sur QEMU/KVM :
 
 ```bash
 vagrant plugin install vagrant-libvirt
+```
+
+## Configuration du réseau libvirt
+
+Avant de lancer les VMs, il faut créer un réseau libvirt correspondant à la plage d'adresses utilisée par le Vagrantfile (`192.168.56.0/24`).
+
+### Vérifier les réseaux existants
+
+```bash
+sudo virsh net-list --all
+```
+
+### Créer le réseau vagrant-libvirt
+
+Créez un fichier de définition du réseau :
+
+```bash
+cat <<EOF | sudo tee /etc/libvirt/qemu/networks/vagrant-libvirt.xml
+<network>
+  <name>vagrant-libvirt</name>
+  <forward mode='nat'/>
+  <bridge name='virbr1' stp='on' delay='0'/>
+  <ip address='192.168.56.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.56.2' end='192.168.56.254'/>
+    </dhcp>
+  </ip>
+</network>
+EOF
+```
+
+Puis activez le réseau :
+
+```bash
+# Définir le réseau
+sudo virsh net-define /etc/libvirt/qemu/networks/vagrant-libvirt.xml
+
+# Démarrer le réseau
+sudo virsh net-start vagrant-libvirt
+
+# Activer le démarrage automatique au boot
+sudo virsh net-autostart vagrant-libvirt
+```
+
+### Vérification
+
+Après ces commandes, vérifiez que le réseau est bien actif :
+
+```bash
+sudo virsh net-list --all
+```
+
+Vous devriez voir :
+
+```
+ Name              State    Autostart   Persistent
+----------------------------------------------------
+ vagrant-libvirt   active   yes         yes
+```
+
+### Résolution de problèmes courants
+
+| Erreur | Solution |
+|--------|----------|
+| `Network not found: no network with matching name 'network'` | Créer le réseau avec les commandes ci-dessus |
+| `error: Failed to start network` | Vérifier que libvirtd est démarré : `sudo systemctl start libvirtd` |
+| `network is not active` | Démarrer le réseau : `sudo virsh net-start vagrant-libvirt` |
+| `Address already in use` | Un autre réseau utilise déjà cette plage. Supprimez-le ou modifiez l'adresse |
+
+## Installation du serveur NFS
+
+Pour permettre le partage de fichiers entre les machines virtuelles (par exemple pour les volumes persistants Kubernetes), un serveur NFS doit être installé sur l'une des VMs (généralement le master ou une VM dédiée).
+
+### Installation sur Ubuntu/Debian
+
+Sur la VM choisie (ex: `vm-master`), connectez-vous et exécutez :
+
+```bash
+sudo apt-get update
+sudo apt-get install -y nfs-kernel-server
 ```
 
 ### 📝 Utilisation manuelle avec Vagrant
@@ -142,5 +221,4 @@ Consultez le fichier [`config/README.md`](config/README.md) pour la documentatio
 | `chmod` | Modifie les permissions d'accès aux fichiers |
 | `chown` | Change le propriétaire et/ou le groupe d'un fichier |
 | `sysctl --system` | Recharge tous les paramètres kernel depuis `/etc/sysctl.d/` |
-
 
