@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    log_format: gunicorn
+    service: apiclients
+    type: api
+  labels:
+    io.kompose.service: apiclients
+  name: apiclients
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: apiclients
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+        log_format: gunicorn
+        service: apiclients
+        type: api
+      labels:
+        io.kompose.service: apiclients
+    spec:
+      containers:
+        - image: ghcr.io/uha-sae53/api-clients/client-manager:latest
+          name: apiclients
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: "dbclients"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: "clients"
+            - name: DB_PASSWORD
+              value: "clients"
+      restartPolicy: Always

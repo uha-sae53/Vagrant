@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: filebeat
+  name: filebeat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: filebeat
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: filebeat
+    spec:
+      containers:
+        - args:
+            - filebeat
+            - -e
+            - -strict.perms=false
+          image: docker.elastic.co/beats/filebeat:8.11.0
+          name: filebeat
+          ports:
+            - containerPort: 5044
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /usr/share/filebeat/filebeat.yml
+              name: filebeat-cm0
+              readOnly: true
+              subPath: filebeat.yml
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            items:
+              - key: config.yaml
+                path: filebeat.yml
+            name: filebeat-cm0
+          name: filebeat-cm0

@@ -86,11 +86,7 @@ cat <<EOF | sudo tee /etc/libvirt/qemu/networks/vagrant-libvirt.xml
   <name>vagrant-libvirt</name>
   <forward mode='nat'/>
   <bridge name='virbr1' stp='on' delay='0'/>
-  <ip address='192.168.56.1' netmask='255.255.255.0'>
-    <dhcp>
-      <range start='192.168.56.2' end='192.168.56.254'/>
-    </dhcp>
-  </ip>
+  <ip address='192.168.56.1' netmask='255.255.255.0'/>
 </network>
 EOF
 ```

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: dbclients
+    type: database
+  labels:
+    io.kompose.service: dbclients
+  name: dbclients
+spec:
+  type: NodePort
+  ports:
+    - name: "3306"
+      port: 3306
+      targetPort: 3306
+      nodePort: 30306
+  selector:
+    io.kompose.service: dbclients

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    log_format: gunicorn
+    service: apiclients
+    type: api
+  labels:
+    io.kompose.service: apiclients
+  name: apiclients
+spec:
+  type: NodePort
+  ports:
+    - name: "8000"
+      port: 8000
+      targetPort: 8000
+      nodePort: 30800
+  selector:
+    io.kompose.service: apiclients

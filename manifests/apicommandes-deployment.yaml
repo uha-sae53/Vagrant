@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose-commandes.yml -o ../manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: api_commandes
+    type: api
+  labels:
+    io.kompose.service: apicommandes
+  name: apicommandes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: apicommandes
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose-commandes.yml -o ../manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+        service: api_commandes
+        type: api
+      labels:
+        io.kompose.service: apicommandes
+    spec:
+      containers:
+        - image: ghcr.io/uha-sae53/api-commandes/commandes-manager:f3ac14f32273be94065f21cd6e5a5f6beba2fe9d
+          name: apicommandes
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+      restartPolicy: Always
