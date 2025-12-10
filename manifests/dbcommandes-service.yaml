@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose-commandes.yml -o ../manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: db_commandes
+    type: database
+  labels:
+    io.kompose.service: dbcommandes
+  name: dbcommandes
+spec:
+  type: ClusterIP
+  ports:
+    - name: "3309"
+      port: 3309
+      targetPort: 3306
+  selector:
+    io.kompose.service: dbcommandes

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    logformat: gunicorn
+    service: apicatalogue
+    type: api
+  labels:
+    io.kompose.service: apicatalogue
+  name: apicatalogue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: apicatalogue
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+        logformat: gunicorn
+        service: apicatalogue
+        type: api
+      labels:
+        io.kompose.service: apicatalogue
+    spec:
+      containers:
+        - image: ghcr.io/uha-sae53/api-clients/catalogue-manager:latest
+          name: apicatalogue
+          ports:
+            - containerPort: 8001
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: "dbcatalogue"
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: "catalogue"
+            - name: DB_PASSWORD
+              value: "catalogue"
+      restartPolicy: Always

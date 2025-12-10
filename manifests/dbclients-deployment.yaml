@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: dbclients
+    type: database
+  labels:
+    io.kompose.service: dbclients
+  name: dbclients
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: dbclients
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+        service: dbclients
+        type: database
+      labels:
+        io.kompose.service: dbclients
+    spec:
+      containers:
+        - env:
+            - name: MARIADB_DATABASE
+              value: clients
+            - name: MARIADB_ROOT_PASSWORD
+              value: clients
+          image: mariadb:latest
+          livenessProbe:
+            exec:
+              command:
+                - healthcheck.sh
+                - --connect
+                - --innodb_initialized
+            failureThreshold: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: dbclients
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: dbclients
+      restartPolicy: Always
+      volumes:
+        - name: dbclients
+          persistentVolumeClaim:
+            claimName: dbclients
