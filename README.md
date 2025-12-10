@@ -32,6 +32,12 @@ Le provisioning utilise maintenant une **architecture modulaire** :
   - Facilite la maintenance et les modifications
   - Permet de réutiliser les scripts indépendamment
 
+## Installation de gcc
+```bash
+sudo apt update
+sudo apt install -y build-essential gcc make ruby-dev libxslt-dev libxml2-dev libvirt-dev zlib1g-dev ebtables dnsmasq-base
+```
+
 ## Installation de Vagrant
 Instructions pour installer Vagrant sur différentes plateformes : https://www.vagrantup.com/docs/installation
 
