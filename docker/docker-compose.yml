@@ -64,7 +64,7 @@ services:
       start_period: 30s
 
   apicatalogue:
-    image: ghcr.io/uha-sae53/api-clients/catalogue-manager:latest
+    image: ghcr.io/uha-sae53/api-catalogue:latest
     restart: always
     ports:
       - 8001:8000
