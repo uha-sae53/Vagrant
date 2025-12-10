@@ -27,7 +27,7 @@ spec:
         io.kompose.service: apicatalogue
     spec:
       containers:
-        - image: ghcr.io/uha-sae53/api-clients/catalogue-manager:latest
+        - image: ghcr.io/uha-sae53/api-catalogue:latest
           name: apicatalogue
           ports:
             - containerPort: 8001
