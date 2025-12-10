@@ -39,4 +39,11 @@ elif [[ "$HOSTNAME" == slave-* ]]; then
 fi
 
 echo ""
-echo "  Provisioning de $HOSTNAME terminé "
+echo "[5] Installation du Dashboard Kubernetes (Master only)"
+if [[ "$HOSTNAME" == "master" ]]; then
+    bash $CONFIG_DIR/install-dashboard.sh
+fi
+
+echo ""
+
+echo "=========================================="
