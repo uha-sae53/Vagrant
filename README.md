@@ -35,6 +35,12 @@ Le provisioning utilise maintenant une **architecture modulaire** :
 ## Installation de Vagrant
 Instructions pour installer Vagrant sur différentes plateformes : https://www.vagrantup.com/docs/installation
 
+## Installation de kvm
+```bash
+sudo apt update
+sudo apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virt-manager
+```
+
 ## Modules utilisés pour le déploiement de l'infrastructure
 
 Installation du plugin vagrant-reload (permet de redémarrer une VM durant le provisioning) :
