@@ -1,6 +1,10 @@
 # Vagrant
 Répertoire des Vagrantfile pour l'infrastructure
 
+## Prérequis matériels et système
+
+Toutes les opérations décrites dans ce guide doivent être réalisées sur un environnement **Debian** disposant d'au moins **16 Go de RAM**. Cette configuration est recommandée pour garantir de bonnes performances lors du déploiement de **3 machines virtuelles** formant un cluster Kubernetes (K8S). Avec moins de mémoire, le cluster risque d'être instable ou lent, notamment lors de l'initialisation des nœuds et du fonctionnement des pods.
+
 ## Objectif
 Ce Vagrantfile permet de déployer automatiquement une infrastructure composée de 3 machines virtuelles pour le projet SAE e-commerce.
 
