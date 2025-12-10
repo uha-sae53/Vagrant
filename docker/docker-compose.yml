@@ -84,7 +84,7 @@ services:
         max-file: "3"
 
   api_commandes:
-    image: ghcr.io/uha-sae53/api-commandes/commandes-manager:f3ac14f32273be94065f21cd6e5a5f6beba2fe9d
+    image: ghcr.io/uha-sae53/api-commandes:latest
     restart: always
     ports:
       - 8002:8000
