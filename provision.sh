@@ -38,9 +38,9 @@ elif [[ "$HOSTNAME" == slave-* ]]; then
     bash $CONFIG_DIR/join-worker.sh
 fi
 
-echo ""
-echo "[5] Installation du Dashboard Kubernetes (Master only)"
 if [[ "$HOSTNAME" == "master" ]]; then
+    echo ""
+    echo "[5] Installation du Dashboard Kubernetes (Master only)"
     bash $CONFIG_DIR/install-dashboard.sh
 fi
 
