@@ -1,0 +1,324 @@
+---
+- name: Configuration complète du cluster Kubernetes
+  hosts: k8s_cluster
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # ========================================
+    # PHASE 1: Préparation du système
+    # ========================================
+    - name: "[Système] Désactiver le swap"
+      shell: |
+        swapoff -a
+        sed -i '/swap/d' /etc/fstab
+      args:
+        warn: false
+
+    - name: "[Système] Charger les modules kernel nécessaires"
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - br_netfilter
+        - overlay
+
+    - name: "[Système] Copier la configuration sysctl pour Kubernetes"
+      copy:
+        src: ../config/sysctl-k8s.conf
+        dest: /etc/sysctl.d/k8s.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: "[Système] Appliquer la configuration sysctl"
+      command: sysctl --system
+
+    # ========================================
+    # PHASE 2: Installation de Docker
+    # ========================================
+    - name: "[Docker] Installer les dépendances"
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+        state: present
+        update_cache: yes
+
+    - name: "[Docker] Créer le répertoire pour les clés GPG"
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: "[Docker] Télécharger la clé GPG Docker"
+      get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: "[Docker] Ajouter le repository Docker"
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bullseye stable"
+        state: present
+        filename: docker
+
+    - name: "[Docker] Installer Docker"
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: "[Docker] Créer le répertoire de configuration containerd"
+      file:
+        path: /etc/containerd
+        state: directory
+        mode: '0755'
+
+    - name: "[Docker] Générer la configuration par défaut de containerd"
+      shell: containerd config default > /etc/containerd/config.toml
+
+    - name: "[Docker] Configurer SystemdCgroup dans containerd"
+      lineinfile:
+        path: /etc/containerd/config.toml
+        regexp: '^\s*SystemdCgroup\s*=\s*false'
+        line: '            SystemdCgroup = true'
+        state: present
+
+    - name: "[Docker] Redémarrer et activer containerd"
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+
+    - name: "[Docker] Se connecter au registre GitHub Container Registry"
+      command: |
+        echo "{{ docker_registry_token }}" | docker login {{ docker_registry_url }} -u {{ docker_registry_user }} --password-stdin
+      no_log: true
+      ignore_errors: yes
+
+    # ========================================
+    # PHASE 3: Installation de Kubernetes
+    # ========================================
+    - name: "[K8s] Télécharger la clé GPG Kubernetes"
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key
+        dest: /tmp/kubernetes-apt-keyring.asc
+        mode: '0644'
+
+    - name: "[K8s] Convertir la clé GPG en format binaire"
+      command: gpg --dearmor --batch --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-apt-keyring.asc
+
+    - name: "[K8s] Ajouter le repository Kubernetes"
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: "[K8s] Installer kubelet, kubeadm et kubectl"
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+
+    - name: "[K8s] Verrouiller les versions de Kubernetes"
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: "[K8s] Activer kubelet"
+      systemd:
+        name: kubelet
+        enabled: yes
+
+# ========================================
+# PHASE 4: Initialisation du Master
+# ========================================
+- name: Initialisation du nœud Master
+  hosts: master
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: "[Master] Vérifier si le cluster est déjà initialisé"
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: k8s_admin_conf
+
+    - name: "[Master] Initialiser le cluster Kubernetes"
+      command: |
+        kubeadm init --pod-network-cidr={{ pod_network_cidr }} --apiserver-advertise-address={{ ansible_host }}
+      when: not k8s_admin_conf.stat.exists
+
+    - name: "[Master] Créer le répertoire .kube pour l'utilisateur vagrant"
+      file:
+        path: /home/vagrant/.kube
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    - name: "[Master] Copier la configuration kubectl pour vagrant"
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/vagrant/.kube/config
+        owner: vagrant
+        group: vagrant
+        mode: '0644'
+        remote_src: yes
+
+    - name: "[Master] Installer le CNI Flannel"
+      become: yes
+      become_user: vagrant
+      command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+
+    - name: "[Master] Générer la commande de jonction pour les workers"
+      command: kubeadm token create --print-join-command
+      register: join_command_output
+
+    - name: "[Master] Sauvegarder la commande de jonction"
+      copy:
+        content: "{{ join_command_output.stdout }}"
+        dest: /vagrant/.master-ready
+        mode: '0644'
+
+    - name: "[Master] Installer le provisioner Local Path"
+      become: yes
+      become_user: vagrant
+      command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+      ignore_errors: yes
+
+    - name: "[Master] Définir Local Path comme StorageClass par défaut"
+      become: yes
+      become_user: vagrant
+      command: kubectl patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+      ignore_errors: yes
+
+# ========================================
+# PHASE 5: Installation Dashboard (Master)
+# ========================================
+- name: Installation du Dashboard Kubernetes
+  hosts: master
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: "[Dashboard] Installer Helm - Ajouter les dépendances"
+      apt:
+        name:
+          - curl
+          - gpg
+          - apt-transport-https
+        state: present
+
+    - name: "[Dashboard] Télécharger la clé GPG Helm"
+      get_url:
+        url: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey
+        dest: /tmp/helm.gpg
+        mode: '0644'
+
+    - name: "[Dashboard] Convertir la clé GPG Helm"
+      command: gpg --dearmor -o /usr/share/keyrings/helm.gpg /tmp/helm.gpg
+
+    - name: "[Dashboard] Ajouter le repository Helm"
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main"
+        state: present
+        filename: helm-stable-debian
+
+    - name: "[Dashboard] Installer Helm"
+      apt:
+        name: helm
+        state: present
+        update_cache: yes
+
+    - name: "[Dashboard] Ajouter le repository kubernetes-dashboard"
+      become: yes
+      become_user: vagrant
+      command: helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+
+    - name: "[Dashboard] Mettre à jour les repos Helm"
+      become: yes
+      become_user: vagrant
+      command: helm repo update
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+
+    - name: "[Dashboard] Déployer le Dashboard Kubernetes"
+      become: yes
+      become_user: vagrant
+      command: |
+        helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
+          --create-namespace --namespace kubernetes-dashboard
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+
+    - name: "[Dashboard] Patcher le service pour NodePort"
+      become: yes
+      become_user: vagrant
+      shell: |
+        kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard-kong-proxy \
+          -p '{"spec":{"type":"NodePort","ports":[{"port":80,"targetPort":80,"nodePort":30080},{"port":443,"targetPort":443,"nodePort":30443}]}}'
+      environment:
+        KUBECONFIG: /home/vagrant/.kube/config
+      ignore_errors: yes
+
+# ========================================
+# PHASE 6: Jonction des Workers
+# ========================================
+- name: Jonction des workers au cluster
+  hosts: workers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: "[Worker] Attendre que le master génère la commande de jonction"
+      wait_for:
+        path: /vagrant/.master-ready
+        timeout: 300
+
+    - name: "[Worker] Lire la commande de jonction"
+      slurp:
+        src: /vagrant/.master-ready
+      register: join_command_file
+
+    - name: "[Worker] Vérifier si le nœud est déjà joint au cluster"
+      stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: "[Worker] Joindre le cluster"
+      command: "{{ join_command_file.content | b64decode | trim }}"
+      when: not kubelet_conf.stat.exists
+
+    - name: "[Worker] Installer git et docker login"
+      apt:
+        name: git
+        state: present
+
+    - name: "[Worker] Se connecter au registre sur le worker"
+      command: |
+        echo "{{ docker_registry_token }}" | docker login {{ docker_registry_url }} -u {{ docker_registry_user }} --password-stdin
+      no_log: true
+      ignore_errors: yes

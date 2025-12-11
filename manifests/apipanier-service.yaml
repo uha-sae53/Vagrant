@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: api_panier
+    type: api
+  labels:
+    io.kompose.service: api-panier
+  name: api-panier
+spec:
+  type: NodePort
+  ports:
+    - name: "8002"
+      port: 8002
+      targetPort: 8000
+      nodePort: 30802
+  selector:
+    io.kompose.service: api-panier

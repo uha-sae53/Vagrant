@@ -82,6 +82,64 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    volumes:
+      - images_catalogue:/app/projet/media
+
+  api_commandes:
+    image: ghcr.io/uha-sae53/api-commandes:latest
+    restart: always
+    ports:
+      - 8003:8000
+    depends_on:
+      - db_commandes
+    networks:
+      - prod
+    labels:
+      - "service=api_commandes"
+      - "type=api"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db_commandes:
+    image: mariadb:latest
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: commandes
+      MARIADB_DATABASE: commandes
+    ports:
+      - 3308:3306
+    volumes:
+      - db_commandes:/var/lib/mysql
+    networks:
+      - prod
+    labels:
+      - "service=db_commandes"
+      - "type=database"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api_panier:
+    image: ghcr.io/uha-sae53/api-panier:latest
+    restart: always
+    ports:
+      - 8002:8000
+    networks:
+      - prod
+    labels:
+      - "service=api_panier"
+      - "type=api"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api_commandes:
     image: ghcr.io/uha-sae53/api-commandes:latest
@@ -178,23 +236,10 @@ services:
 volumes:
   dbclients:
   dbcatalogue:
+  images_catalogue:
   db_commandes:
   elasticsearch_data:
 
 networks:
   prod:
     driver: bridge
-
-  # api_panier:
-  #   image: sae503/api_panier:latest # récupérer l'image GitHub après CD
-  #   restart: always
-  #   ports:
-  #     - 8002:8000 # redéfinir les ports
-
-  # db_panier:
-  #   image: mariadb:latest
-  #   restart: always
-  #   environment:
-  #     MARIADB_ROOT_PASSWORD: panier # définir un mot de passe pour la base
-  #   volumes:
-  #     - db_panier:/var/lib/mysql

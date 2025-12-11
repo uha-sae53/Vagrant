@@ -50,13 +50,35 @@ echo "[Dashboard] Accès au tableau de bord configuré avec succès."
 
 echo "[Dashboard] Vérification du service..."
 kubectl -n kubernetes-dashboard get svc kubernetes-dashboard-kong-proxy
+if [ $? -ne 0 ]; then
+    echo "[Dashboard] Échec de la vérification du service."
+    exit 1
+fi
+
+echo "[Dashboard] Vérification que le service est de type NodePort..."
+if kubectl -n kubernetes-dashboard get svc kubernetes-dashboard-kong-proxy -o jsonpath='{.spec.type}' | grep -q "NodePort"; then
+    echo "[Dashboard] Le service est bien configuré en NodePort."
+else
+    echo "[Dashboard] Erreur: Le service n'est pas de type NodePort."
+    exit 1
+fi
 
 echo "[Dashboard] Configuration de l'utilisateur administrateur..."
 kubectl create serviceaccount admin-user -n kubernetes-dashboard
 kubectl create clusterrolebinding admin-user-binding --clusterrole=cluster-admin --serviceaccount=kubernetes-dashboard:admin-user
 
+if [ $? -ne 0 ]; then
+    echo "[Dashboard] Échec de la configuration de l'utilisateur administrateur."
+    exit 1
+fi
+echo "[Dashboard] Utilisateur administrateur configuré avec succès."
+
 echo "[Dashboard] Récupération du token d'accès..."
 TOKEN=$(kubectl -n kubernetes-dashboard create token admin-user)
+if [ $? -ne 0 ]; then
+    echo "[Dashboard] Échec de la récupération du token d'accès."
+    exit 1
+fi
 
 echo ""
 echo "=========================================="
