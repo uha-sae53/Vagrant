@@ -8,3 +8,4 @@
 .idea/
 .master-ready
 join.sh
+*env
