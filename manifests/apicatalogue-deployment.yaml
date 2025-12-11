@@ -41,4 +41,11 @@ spec:
               value: "catalogue"
             - name: DB_PASSWORD
               value: "catalogue"
+          volumeMounts:
+            - mountPath: /app/projet/media
+              name: images-catalogue
       restartPolicy: Always
+      volumes:
+        - name: images-catalogue
+          persistentVolumeClaim:
+            claimName: images-catalogue
