@@ -1,0 +1,133 @@
+---
+# attendre apt
+- name: Attendre apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Installer les deps docker
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: yes
+  register: docker_deps
+  until: docker_deps is success
+  retries: 5
+  delay: 10
+
+- name: Creer dossier keyrings
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: DL cle GPG docker
+  get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+# encore attendre apt...
+- name: Attendre apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Ajouter repo docker
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bullseye stable"
+    state: present
+    filename: docker
+
+- name: Attendre apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+# install docker enfin
+- name: Installer docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+    state: present
+    update_cache: yes
+  register: docker_install
+  until: docker_install is success
+  retries: 5
+  delay: 10
+
+- name: Creer dossier config containerd
+  file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+
+- name: Virer ancienne config containerd
+  file:
+    path: /etc/containerd/config.toml
+    state: absent
+
+- name: Config containerd par defaut
+  shell: containerd config default > /etc/containerd/config.toml
+
+# important pour k8s
+- name: Mettre SystemdCgroup
+  lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    line: '            SystemdCgroup = true'
+    backrefs: yes
+
+- name: Restart containerd
+  systemd:
+    name: containerd
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Attendre containerd
+  pause:
+    seconds: 5
+
+- name: Check socket containerd
+  stat:
+    path: /var/run/containerd/containerd.sock
+  register: containerd_socket
+  until: containerd_socket.stat.exists
+  retries: 10
+  delay: 3
+
+- name: Verif containerd fonctionne
+  shell: ctr --connect-timeout 5s version >/dev/null 2>&1
+  register: containerd_check
+  changed_when: false
+  retries: 10
+  delay: 3
+  until: containerd_check.rc == 0

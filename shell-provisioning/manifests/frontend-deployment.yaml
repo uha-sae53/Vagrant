@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+  labels:
+    io.kompose.service: frontend
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: frontend
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+      labels:
+        io.kompose.service: frontend
+    spec:
+      containers:
+        - image: ghcr.io/uha-sae53/frontend/frontend-manager:latest
+          name: frontend
+          ports:
+            - containerPort: 8004
+              protocol: TCP
+          env:
+            - name: CLIENT_API_URL
+              value: "http://apiclients:8000"
+            - name: CATALOGUE_API_URL
+              value: "http://apicatalogue:8001"
+            - name: PANIER_API_URL
+              value: "http://apipanier:8002"
+            - name: DEBUG
+              value: "True"
+            - name: DJANGO_ALLOWED_HOST
+              value: "*"
+      restartPolicy: Always

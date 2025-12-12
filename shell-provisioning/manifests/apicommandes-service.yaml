@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose-commandes.yml -o ../manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: api_commandes
+    type: api
+  labels:
+    io.kompose.service: apicommandes
+  name: apicommandes
+spec:
+  type: NodePort
+  ports:
+    - name: "8003"
+      port: 8003
+      targetPort: 8000
+      nodePort: 30803
+  selector:
+    io.kompose.service: apicommandes

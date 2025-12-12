@@ -1,0 +1,105 @@
+---
+# init du cluster
+- name: Init cluster k8s
+  command: kubeadm init --apiserver-advertise-address=192.168.56.10 --pod-network-cidr=10.244.0.0/16
+  args:
+    creates: /etc/kubernetes/admin.conf
+
+- name: Creer dossier .kube vagrant
+  file:
+    path: /home/vagrant/.kube
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: '0755'
+
+- name: Copier config kubectl
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/vagrant/.kube/config
+    remote_src: yes
+    owner: vagrant
+    group: vagrant
+    mode: '0644'
+
+# reseau flannel pour la com entre pods
+- name: Installer Flannel
+  become_user: vagrant
+  command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+
+# recuperer token pour les workers
+- name: Recuperer token
+  shell: kubeadm token list | grep authentication | head -n1 | awk '{print $1}'
+  register: k8s_token
+  changed_when: false
+
+- name: Recuperer hash CA
+  shell: openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'
+  register: k8s_ca_hash
+  changed_when: false
+
+# creer le script de join pour les workers
+- name: Generer commande join
+  copy:
+    content: "kubeadm join 192.168.56.10:6443 --token {{ k8s_token.stdout }} --discovery-token-ca-cert-hash sha256:{{ k8s_ca_hash.stdout }}"
+    dest: /vagrant/join.sh
+    mode: '0755'
+
+- name: Attendre synchro fichier
+  pause:
+    seconds: 3
+
+- name: Creer fichier .master-ready
+  copy:
+    content: "Master initialized at {{ ansible_date_time.iso8601 }}"
+    dest: /vagrant/.master-ready
+
+# storage local
+- name: Installer local-path provisioner
+  command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+- name: Definir local-path par defaut
+  command: kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --overwrite
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+# secret pour pull les images depuis github
+- name: Creer secret ghcr
+  command: >
+    kubectl create secret docker-registry ghcr-cred
+    --docker-server=ghcr.io
+    --docker-username=uha-sae53
+    --docker-password='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'
+    --namespace=default
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+  no_log: true
+
+- name: Attendre ServiceAccount default
+  command: kubectl get serviceaccount default -n default
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: sa_check
+  until: sa_check.rc == 0
+  retries: 30
+  delay: 2
+  changed_when: false
+
+- name: Attacher secret au SA
+  command: kubectl patch serviceaccount default -p '{"imagePullSecrets":[{"name":"ghcr-cred"}]}' --namespace=default
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Appliquer les manifests Kubernetes
+  command: kubectl apply -f /vagrant/manifests/
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: lookup('fileglob', '/vagrant/manifests/*.yaml') | length > 0
+  ignore_errors: yes

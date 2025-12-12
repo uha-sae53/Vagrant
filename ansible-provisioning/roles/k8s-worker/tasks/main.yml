@@ -1,0 +1,30 @@
+---
+- name: Attendre que le fichier .master-ready existe
+  wait_for:
+    path: /vagrant/.master-ready
+    timeout: 600
+    msg: "Master n'est pas prêt après 10 minutes"
+
+- name: Vérifier que le fichier join.sh existe et n'est pas vide
+  stat:
+    path: /vagrant/join.sh
+  register: join_file
+
+- name: Échouer si join.sh n'existe pas ou est vide
+  fail:
+    msg: "Le fichier join.sh n'existe pas ou est vide!"
+  when: not join_file.stat.exists or join_file.stat.size == 0
+
+- name: Afficher le contenu de join.sh
+  command: cat /vagrant/join.sh
+  register: join_content
+  changed_when: false
+
+- name: Afficher la commande de jonction
+  debug:
+    msg: "{{ join_content.stdout }}"
+
+- name: Joindre le cluster Kubernetes
+  shell: bash /vagrant/join.sh
+  args:
+    creates: /etc/kubernetes/kubelet.conf

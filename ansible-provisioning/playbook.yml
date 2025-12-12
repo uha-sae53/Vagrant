@@ -1,0 +1,53 @@
+---
+# playbook pour monter le cluster k8s
+- name: Setup du cluster
+  hosts: k8s_cluster
+  become: yes
+  gather_facts: yes
+  serial: 1
+  
+  pre_tasks:
+    # on clean les anciens fichiers
+    - name: Nettoyer les vieux fichiers
+      file:
+        path: "/vagrant/{{ item }}"
+        state: absent
+      with_items:
+        - join.sh
+        - .master-ready
+      when: inventory_hostname in groups['master']
+      run_once: true
+
+  roles:
+    - system-prepare
+    - docker
+    - kubernetes
+
+# init du master
+- name: Demarrer le master
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - k8s-master
+
+# les workers rejoignent le cluster
+- name: Faire rejoindre les workers
+  hosts: workers
+  become: yes
+  gather_facts: yes
+  serial: 1
+  
+  roles:
+    - k8s-worker
+
+# dashboard a la fin
+- name: Installer le dashboard
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - k8s-dashboard
+

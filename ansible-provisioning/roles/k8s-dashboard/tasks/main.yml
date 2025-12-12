@@ -1,0 +1,146 @@
+---
+- name: Attendre avant installation Helm
+# Regle par chatGPT pour eviter les conflits apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Installer les dépendances pour Helm
+  apt:
+    name:
+      - curl
+      - gpg
+      - apt-transport-https
+    state: present
+  register: helm_deps
+  until: helm_deps is success
+  retries: 5
+  delay: 10
+
+- name: Télécharger la clé GPG de Helm
+  shell: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
+  args:
+    creates: /usr/share/keyrings/helm.gpg
+
+- name: Attendre avant ajout repository Helm
+# Regle par chatGPT pour eviter les conflits apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Ajouter le repository Helm
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/helm.gpg] https://packages.buildkite.com/helm-linux/helm-debian/any/ any main"
+    state: present
+    filename: helm-stable-debian
+
+- name: Attendre avant installation Helm
+# Regle par chatGPT pour eviter les conflits apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Installer Helm
+  apt:
+    name: helm
+    state: present
+    update_cache: yes
+  register: helm_install
+  until: helm_install is success
+  retries: 5
+  delay: 10
+
+- name: Ajouter le repository Kubernetes Dashboard
+  become_user: vagrant
+  command: helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+
+- name: Mettre à jour les repositories Helm
+  become_user: vagrant
+  command: helm repo update
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+
+- name: Déployer le Dashboard Kubernetes avec Helm
+  become_user: vagrant
+  command: >
+    helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard
+    --create-namespace
+    --namespace kubernetes-dashboard
+    --set kong.proxy.http.enabled=true
+    --set kong.proxy.http.servicePort=80
+    --set kong.proxy.tls.enabled=true
+    --set kong.proxy.tls.servicePort=443
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+
+- name: Attendre que le déploiement soit disponible
+  command: kubectl wait --for=condition=available --timeout=300s deployment/kubernetes-dashboard-kong -n kubernetes-dashboard
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Configurer le service en NodePort
+  command: >
+    kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard-kong-proxy
+    -p '{"spec": {"type": "NodePort", "ports": [{"name": "kong-proxy-tls", "port": 443, "targetPort": 8443, "nodePort": 30443}]}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Vérifier le service
+  command: kubectl -n kubernetes-dashboard get svc kubernetes-dashboard-kong-proxy
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Créer le ServiceAccount admin-user
+  command: kubectl create serviceaccount admin-user -n kubernetes-dashboard
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+- name: Créer le ClusterRoleBinding
+  command: kubectl create clusterrolebinding admin-user-binding --clusterrole=cluster-admin --serviceaccount=kubernetes-dashboard:admin-user
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+- name: Récupérer le token d'accès
+  command: kubectl -n kubernetes-dashboard create token admin-user
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: dashboard_token
+  changed_when: false
+
+- name: Afficher les informations du Dashboard
+  debug:
+    msg:
+      - "=========================================="
+      - "Dashboard Kubernetes configuré avec succès"
+      - "=========================================="
+      - ""
+      - "URL d'accès : https://192.168.56.10:30443"
+      - ""
+      - "Token : {{ dashboard_token.stdout }}"
+      - ""

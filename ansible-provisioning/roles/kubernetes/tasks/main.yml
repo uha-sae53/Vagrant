@@ -1,0 +1,88 @@
+---
+# recuperer la cle GPG k8s
+- name: Ajouter cle GPG k8s
+  shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor --batch --yes -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+
+- name: Attendre apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Ajouter repo k8s
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+    state: present
+    filename: kubernetes
+
+
+- name: Attendre apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+# install des outils k8s
+- name: Installer kubelet kubeadm kubectl
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: yes
+  register: k8s_install
+  retries: 5
+  delay: 10
+
+- name: Attendre apt
+# Regle par chatGPT pour eviter les conflits apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    done
+  changed_when: false
+- name: Verrouiller versions k8s
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Activer kubelet
+  systemd:
+    name: kubelet
+    enabled: yes
+
+- name: Installer git
+  apt:
+    name: git
+    state: present
+
+# login sur le registre github
+- name: Login ghcr
+- name: Se connecter au registre GitHub Container Registry
+  shell: echo "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" | docker login ghcr.io -u uha-sae53 --password-stdin
+  ignore_errors: yes
+  no_log: true

@@ -1,0 +1,73 @@
+---
+# desactiver le swap c'est obligatoire pour k8s
+- name: Virer le swap
+  shell: swapoff -a
+  ignore_errors: yes
+
+- name: Enlever le swap du fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '.*swap.*'
+    state: absent
+
+# module pour le reseau k8s
+- name: Charger br_netfilter
+  modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Config sysctl
+  copy:
+    src: sysctl-k8s.conf
+    dest: /etc/sysctl.d/k8s.conf
+    mode: '0644'
+
+- name: Appliquer sysctl
+  command: sysctl --system
+
+# virer les updates auto sinon ca fait chier
+- name: Couper les updates automatiques
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+  ignore_errors: yes
+
+# attendre que apt soit dispo
+- name: Attendre apt
+  shell: |
+    for i in {1..60}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+        exit 0
+      fi
+      sleep 2
+    done
+    killall apt apt-get 2>/dev/null || true
+    sleep 2
+  changed_when: false
+
+- name: Installer git
+  apt:
+    name: git
+    state: present
+    update_cache: yes
+  register: git_install
+  until: git_install is success # réessayer si échec
+  retries: 3
+  delay: 10
+
+# login sur ghcr.io si docker est la
+- name: Check docker
+  command: which docker
+  register: docker_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Login ghcr
+  shell: echo "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" | docker login ghcr.io -u uha-sae53 --password-stdin
+  when: docker_check.rc == 0
+  ignore_errors: yes
+  no_log: true
