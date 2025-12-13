@@ -1,0 +1,32 @@
+name: K8S YAML Manifest Lint
+on:
+    push:
+        branches:
+            - main
+            - 'release/*'
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    yamllint:
+        name: Lint Kubernetes YAML Manifests
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Verification du code
+              uses: actions/checkout@v3
+
+            - name: Installation de KubeLinter
+              uses: stackrox/kube-linter-action@v1
+              with:
+                  version: '0.3.2'
+
+            - name: Lancer KubeLinter
+              uses: stackrox/kube-linter-action@v1
+              with:
+                  args: lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/
+                  version: '0.3.2'
+
+            - name: Afficher les resultats
+              run: cat kube-linter-report.txt
