@@ -28,7 +28,13 @@ jobs:
 
       - name: Lancer KubeLinter
         run: |
-          kubelinter lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/ | tee kube-linter-report.txt
+          kube-linter lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/ | tee kube-linter-report.txt
+
+      - name: Upload KubeLinter Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: kube-linter-report
+          path: kube-linter-report.txt
 
       - name: Afficher les résultats
         run: cat kube-linter-report.txt
