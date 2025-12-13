@@ -21,9 +21,10 @@ jobs:
       - name: Installer KubeLinter
         run: |
           KUBELINTER_VERSION=$(curl -s https://api.github.com/repos/stackrox/kubelinter/releases/latest | grep tag_name | cut -d '"' -f 4)
+          KUBELINTER_VERSION_NO_V=${KUBELINTER_VERSION#v}
           curl -LO https://github.com/stackrox/kubelinter/releases/download/${KUBELINTER_VERSION}/kubelinter-linux-amd64.tar.gz
           tar -xzf kubelinter-linux-amd64.tar.gz
-          sudo mv kubelinter /usr/local/bin/
+          sudo mv kubelinter-linux-amd64/kubelinter /usr/local/bin/
           kubelinter version
 
       - name: Lancer KubeLinter
