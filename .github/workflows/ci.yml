@@ -31,7 +31,7 @@ jobs:
           kube-linter lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/ | tee kube-linter-report.txt
 
       - name: Upload KubeLinter Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kube-linter-report
           path: kube-linter-report.txt
