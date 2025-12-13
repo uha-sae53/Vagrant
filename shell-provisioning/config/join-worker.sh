@@ -27,6 +27,10 @@ echo "[Worker] Verification du contenu de join.sh:"
 cat /vagrant/join.sh
 echo ""
 
+echo "[Worker] Nettoyage des anciennes config k8s si elles existent..."
+kubeadm reset -f || true
+rm -rf /etc/kubernetes || true
+
 echo "[Worker] Jonction au cluster Kubernetes..."
 bash /vagrant/join.sh
 

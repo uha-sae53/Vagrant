@@ -1,4 +1,16 @@
 ---
+# nettoyer les vieux fichiers k8s si ils existent
+- name: Reset kubeadm si deja joint
+  command: kubeadm reset -f
+  ignore_errors: yes
+  changed_when: false
+
+- name: Supprimer dossier kubernetes
+  file:
+    path: /etc/kubernetes
+    state: absent
+  ignore_errors: yes
+
 - name: Attendre que le fichier .master-ready existe
   wait_for:
     path: /vagrant/.master-ready

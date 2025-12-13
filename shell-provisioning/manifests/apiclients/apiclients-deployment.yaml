@@ -26,6 +26,10 @@ spec:
       labels:
         io.kompose.service: apiclients
     spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nc -z dbclients 3306; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-clients/client-manager:latest
           name: apiclients

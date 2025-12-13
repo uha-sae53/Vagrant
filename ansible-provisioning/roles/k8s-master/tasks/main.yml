@@ -97,9 +97,10 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
-- name: Appliquer les manifests Kubernetes
-  command: kubectl apply -f /vagrant/manifests/
+# deployer les manifests de l'app
+- name: Appliquer manifests
+  shell: kubectl apply -f /vagrant/manifests/ --recursive 2>&1 | grep -v "unchanged" || true
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  when: lookup('fileglob', '/vagrant/manifests/*.yaml') | length > 0
-  ignore_errors: yes
+  register: apply_result
+  changed_when: "'created' in apply_result.stdout or 'configured' in apply_result.stdout"

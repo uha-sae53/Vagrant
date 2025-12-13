@@ -24,6 +24,10 @@ spec:
       labels:
         io.kompose.service: apicommandes
     spec:
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.28
+          command: ['sh', '-c', 'until nc -z dbcommandes 3306; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-commandes:latest
           name: apicommandes

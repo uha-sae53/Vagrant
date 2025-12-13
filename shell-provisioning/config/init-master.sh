@@ -82,7 +82,7 @@ done
 
 echo "[Master] Application automatique des manifests convertis par Compose"
 if [ -d "/vagrant/manifests" ]; then
-	kubectl apply -f /vagrant/manifests/ || true
+	kubectl apply -f /vagrant/manifests/ --recursive 2>&1 | grep -v "unchanged" || true
 	echo "[Master] Manifests appliqués."
 else
 	echo "[Master] Dossier /vagrant/manifests introuvable, skip."
