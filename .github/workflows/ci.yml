@@ -9,24 +9,21 @@ on:
             - main
 
 jobs:
-    yamllint:
-        name: Lint Kubernetes YAML Manifests
-        runs-on: ubuntu-latest
+  yamllint:
+    name: Lint Kubernetes YAML Manifests
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Verification du code
-              uses: actions/checkout@v3
+    steps:
+      - name: Verification du code
+        uses: actions/checkout@v3
 
-            - name: Installation de KubeLinter
-              uses: stackrox/kube-linter-action@v1
-              with:
-                  version: '0.3.2'
+      - name: Installation de KubeLinter
+        run: |
+          curl -sSL https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository | sudo bash
+          sudo apt install kubelinter
 
-            - name: Lancer KubeLinter
-              uses: stackrox/kube-linter-action@v1
-              with:
-                  args: lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/
-                  version: '0.3.2'
+      - name: Lancer KubeLinter
+        run: kubelinter lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/ | tee kube-linter-report.txt
 
-            - name: Afficher les resultats
-              run: cat kube-linter-report.txt
+      - name: Afficher les resultats
+        run: cat kube-linter-report.txt
