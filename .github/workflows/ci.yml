@@ -1,12 +1,13 @@
 name: K8S YAML Manifest Lint
+
 on:
-    push:
-        branches:
-            - main
-            - 'release/*'
-    pull_request:
-        branches:
-            - main
+  push:
+    branches:
+      - main
+      - 'release/*'
+  pull_request:
+    branches:
+      - main
 
 jobs:
   yamllint:
@@ -14,16 +15,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Verification du code
+      - name: Vérification du code
         uses: actions/checkout@v3
 
-      - name: Installation de KubeLinter
+      - name: Installer KubeLinter
         run: |
-          curl -sSL https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository | sudo bash
-          sudo apt install kubelinter
+          curl -sSL https://github.com/stackrox/kubelinter/releases/latest/download/kubelinter-linux-amd64.tar.gz -o kubelinter.tar.gz
+          tar -xzf kubelinter.tar.gz
+          sudo mv kubelinter /usr/local/bin/
+          kubelinter version
 
       - name: Lancer KubeLinter
-        run: kubelinter lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/ | tee kube-linter-report.txt
+        run: |
+          kubelinter lint Vagrant/ansible-provisioning/manifests/ Vagrant/shell-provisioning/manifests/ | tee kube-linter-report.txt
 
-      - name: Afficher les resultats
+      - name: Afficher les résultats
         run: cat kube-linter-report.txt
