@@ -60,9 +60,16 @@ Instructions officielles :  https://www.vagrantup.com/docs/installation
 
 Pour Debian/Ubuntu :
 ```bash
+# Télécharger et ajouter la clé GPG de HashiCorp
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp. com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+# Ajouter le dépôt HashiCorp à la liste des sources (corriger l'URL)
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+# Mettre à jour les informations des paquets
 sudo apt update
+
+# Installer Vagrant
 sudo apt install vagrant
 ```
 
