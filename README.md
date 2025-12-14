@@ -1,70 +1,151 @@
-# Vagrant
-Répertoire des Vagrantfile pour l'infrastructure
+# Vagrant - Infrastructure Kubernetes avec Ansible
+
+Répertoire des Vagrantfile pour l'infrastructure du projet SAE e-commerce. 
 
 ## Prérequis matériels et système
 
-Toutes les opérations décrites dans ce guide doivent être réalisées sur un environnement **Debian** disposant d'au moins **16 Go de RAM**. Cette configuration est recommandée pour garantir de bonnes performances lors du déploiement de **3 machines virtuelles** formant un cluster Kubernetes (K8S). Avec moins de mémoire, le cluster risque d'être instable ou lent, notamment lors de l'initialisation des nœuds et du fonctionnement des pods.
+Toutes les opérations décrites dans ce guide doivent être réalisées sur un environnement **Debian** disposant d'au moins **16 Go de RAM**. Cette configuration est recommandée pour garantir des performances optimales lors du déploiement de l'infrastructure. 
 
 ## Objectif
-Ce Vagrantfile permet de déployer automatiquement une infrastructure composée de 3 machines virtuelles pour le projet SAE e-commerce.
 
-## Structure du répertoire
+Ce projet permet de déployer automatiquement une infrastructure composée de 3 machines virtuelles formant un cluster Kubernetes, en utilisant **Ansible** pour le provisioning automatisé. 
+
+## Architecture du projet
 
 ```
 Vagrant/
-├── Vagrantfile              # Configuration des VMs
-├── provision.sh             # Script principal de provisioning (orchestrateur)
-├── config/                  # Fichiers de configuration préfabriqués
-│   ├── README.md           # Documentation des scripts de configuration
-│   ├── sysctl-k8s.conf     # Configuration réseau Kubernetes
-│   ├── prepare-system.sh   # Préparation du système
-│   ├── install-docker.sh   # Installation de Docker
-│   ├── install-k8s.sh      # Installation de Kubernetes
-│   ├── init-master.sh      # Initialisation du master
-│   └── join-worker.sh      # Jonction des workers
-└── docker/                  # Configuration Docker Compose pour les services
-  └── docker-compose.yml
+├── README. md                      # Cette documentation
+├── ansible-provisioning/          # Architecture principale (Ansible)
+│   ├── Vagrantfile               # Configuration des VMs
+│   ├── ansible.cfg               # Configuration Ansible
+│   ├── inventory.ini             # Inventaire des machines
+│   ├── playbook.yml              # Playbook principal
+│   ├── manifests/                # Manifests Kubernetes
+│   └── roles/                    # Rôles Ansible modulaires
+│       ├── system-prepare/       # Préparation du système
+│       ├── docker/               # Installation de Docker
+│       ├── kubernetes/           # Installation de Kubernetes
+│       ├── k8s-master/           # Initialisation du master
+│       ├── k8s-worker/           # Jonction des workers
+│       └── k8s-dashboard/        # Dashboard Kubernetes
+├── shell-provisioning/           # DÉPRÉCIÉ - Scripts shell (tests uniquement)
+└── docker/                       # Configuration Docker Compose
 ```
 
-### Architecture modulaire
+### Note importante sur le shell-provisioning
 
-Le provisioning utilise maintenant une **architecture modulaire** :
+Le répertoire `shell-provisioning/` contient l'ancienne architecture basée sur des scripts shell.  **Cette approche est désormais dépréciée et n'est plus maintenue**. Elle a été conservée uniquement à des fins de tests et de référence. 
 
-- **`provision.sh`** : Script orchestrateur qui appelle les scripts de configuration
-- **`config/`** : Répertoire contenant tous les scripts et fichiers de configuration
-  - Chaque script a une responsabilité unique et claire
-  - Facilite la maintenance et les modifications
-  - Permet de réutiliser les scripts indépendamment
+**Utilisez exclusivement le répertoire `ansible-provisioning/` pour déployer l'infrastructure.**
 
-## Installation de gcc
+## Installation des prérequis
+
+### 1. Installation de GCC et outils de compilation
+
 ```bash
 sudo apt update
 sudo apt install -y build-essential gcc make ruby-dev libxslt-dev libxml2-dev libvirt-dev zlib1g-dev ebtables dnsmasq-base
 ```
 
-## Installation de Vagrant
-Instructions pour installer Vagrant sur différentes plateformes : https://www.vagrantup.com/docs/installation
+### 2. Installation de KVM/QEMU
 
-## Installation de kvm
 ```bash
 sudo apt update
-sudo apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virt-manager
+sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virt-manager
 ```
 
-## Modules utilisés pour le déploiement de l'infrastructure
+### 3. Installation de Vagrant
 
-Installation du plugin vagrant-reload (permet de redémarrer une VM durant le provisioning) :
+Instructions officielles :  https://www.vagrantup.com/docs/installation
+
+Pour Debian/Ubuntu :
+```bash
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp. com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+sudo apt update
+sudo apt install vagrant
+```
+
+### 4. Installation des plugins Vagrant
 
 ```bash
+# Plugin pour redémarrer les VMs durant le provisioning
 vagrant plugin install vagrant-reload
 
-```
-
-Installation du module pour utiliser Vagrant sur QEMU/KVM :
-
-```bash
+# Plugin pour utiliser Vagrant avec QEMU/KVM
 vagrant plugin install vagrant-libvirt
 ```
+
+### 5. Installation d'Ansible
+
+Ansible est utilisé pour automatiser le provisioning du cluster Kubernetes.
+
+#### Installation sur Debian/Ubuntu
+
+```bash
+sudo apt update
+sudo apt install -y software-properties-common
+sudo apt-add-repository --yes --update ppa:ansible/ansible
+sudo apt install -y ansible
+```
+
+#### Installation via pip (méthode alternative)
+
+```bash
+sudo apt install -y python3-pip
+pip3 install ansible
+```
+
+#### Vérification de l'installation
+
+```bash
+ansible --version
+```
+
+Vous devriez voir une version >= 2.9. 
+
+#### Collections Ansible requises
+
+Les collections nécessaires sont installées automatiquement lors du premier `vagrant up`. Si vous souhaitez les installer manuellement : 
+
+```bash
+ansible-galaxy collection install community.general
+ansible-galaxy collection install ansible. posix
+```
+
+### 6. Installation du serveur NFS (OBLIGATOIRE)
+
+**IMPORTANT** : Le serveur NFS est **obligatoire** sur la **machine hôte** (celle qui lance Vagrant) pour le partage de fichiers entre l'hôte et les VMs.  Le Vagrantfile utilise `type: "nfs"` pour synchroniser le répertoire courant.
+
+#### Installation sur la machine hôte (Debian/Ubuntu)
+
+```bash
+sudo apt update
+sudo apt install -y nfs-kernel-server nfs-common
+```
+
+#### Vérification
+
+```bash
+# Vérifier que le service NFS est actif
+sudo systemctl status nfs-server
+
+# Si le service n'est pas démarré
+sudo systemctl enable --now nfs-server
+```
+
+#### Configuration des exports NFS (automatique)
+
+Vagrant configure automatiquement les exports NFS dans `/etc/exports` lors du `vagrant up`. Vous n'avez rien à faire manuellement.
+
+#### Résolution de problèmes NFS
+
+| Erreur | Solution |
+|--------|----------|
+| `mount.nfs: Connection timed out` | Vérifier que `nfs-server` est actif sur l'hôte :  `sudo systemctl start nfs-server` |
+| `exportfs: No such file or directory` | Installer `nfs-kernel-server` sur l'hôte |
+| `Permission denied` | Vérifier les droits sur le répertoire partagé :  `sudo chmod -R 755 . ` |
+| `mount.nfs: access denied` | Vérifier le firewall : `sudo ufw allow from 192.168.56.0/24` |
 
 ## Configuration du réseau libvirt
 
@@ -112,7 +193,7 @@ Après ces commandes, vérifiez que le réseau est bien actif :
 sudo virsh net-list --all
 ```
 
-Vous devriez voir :
+Vous devriez voir :  
 
 ```
  Name              State    Autostart   Persistent
@@ -124,60 +205,59 @@ Vous devriez voir :
 
 | Erreur | Solution |
 |--------|----------|
-| `Network not found: no network with matching name 'network'` | Créer le réseau avec les commandes ci-dessus |
+| `Network not found:  no network with matching name 'network'` | Créer le réseau avec les commandes ci-dessus |
 | `error: Failed to start network` | Vérifier que libvirtd est démarré : `sudo systemctl start libvirtd` |
 | `network is not active` | Démarrer le réseau : `sudo virsh net-start vagrant-libvirt` |
-| `Address already in use` | Un autre réseau utilise déjà cette plage. Supprimez-le ou modifiez l'adresse |
+| `Address already in use` | Un autre réseau utilise déjà cette plage.  Supprimez-le ou modifiez l'adresse |
 
-## Installation du serveur NFS
+## Déploiement de l'infrastructure
 
-Pour permettre le partage de fichiers entre les machines virtuelles (par exemple pour les volumes persistants Kubernetes), un serveur NFS doit être installé sur l'une des VMs (généralement le master ou une VM dédiée).
-
-### Installation sur Ubuntu/Debian
-
-Sur la VM choisie (ex: `vm-master`), connectez-vous et exécutez :
+### Démarrage du cluster complet
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y nfs-kernel-server
+cd ansible-provisioning
+vagrant up
 ```
 
-### 📝 Utilisation manuelle avec Vagrant
+Cette commande démarre automatiquement les 3 VMs et exécute le provisioning Ansible :  
+- `vm-master` : Nœud master Kubernetes (192.168.56.10)
+- `vm-slave-1` : Worker node 1 (192.168.56.11)
+- `vm-slave-2` : Worker node 2 (192.168.56.12)
 
-Pour démarrer l'infrastructure manuellement :
-
-```bash
-# Démarrer uniquement le master
-vagrant up vm-master
-
-# Attendre que le master soit complètement initialisé (30-60 secondes)
-# Puis démarrer les workers
-vagrant up vm-slave-1 vm-slave-2
-```
-
-**Important** : Ne pas utiliser `vagrant up` sans arguments car cela démarre les VMs en parallèle, ce qui peut causer des erreurs de jonction des workers (token expiré ou non disponible).
-
-Pour arrêter les machines virtuelles :
+### Commandes utiles
 
 ```bash
+# Vérifier l'état des VMs
+vagrant status
+
+# Se connecter à une VM
+vagrant ssh vm-master
+vagrant ssh vm-slave-1
+vagrant ssh vm-slave-2
+
+# Arrêter les VMs
 vagrant halt
-```
 
-Pour supprimer l'infrastructure :
+# Redémarrer les VMs
+vagrant reload
 
-```bash
+# Supprimer l'infrastructure
 vagrant destroy -f
+
+# Re-provisionner sans détruire
+vagrant provision
 ```
 
-### Vérifier le cluster
+## Vérification du cluster Kubernetes
 
-Une fois toutes les VMs démarrées, vérifiez l'état du cluster :
+### Vérifier l'état des nœuds
 
 ```bash
 vagrant ssh vm-master -c 'kubectl get nodes'
 ```
 
-Vous devriez voir les 3 nœuds en état `Ready` :
+Vous devriez voir les 3 nœuds en état `Ready` :  
+
 ```
 NAME       STATUS   ROLES           AGE   VERSION
 master     Ready    control-plane   2m    v1.28.x
@@ -185,7 +265,13 @@ slave-1    Ready    <none>          1m    v1.28.x
 slave-2    Ready    <none>          1m    v1.28.x
 ```
 
-### Vérifier les logs de provisioning
+### Vérifier les pods système
+
+```bash
+vagrant ssh vm-master -c 'kubectl get pods -A'
+```
+
+### Vérifier les logs de kubelet
 
 ```bash
 # Logs du master
@@ -195,42 +281,83 @@ vagrant ssh vm-master -c 'sudo journalctl -u kubelet -f'
 vagrant ssh vm-slave-1 -c 'sudo journalctl -u kubelet -f'
 ```
 
-## Explication du script `provision.sh`
+## Architecture du provisioning Ansible
 
-Le script `provision.sh` est maintenant un **orchestrateur léger** qui appelle les scripts modulaires du répertoire `config/`.
+Le provisioning utilise une **architecture modulaire basée sur des rôles Ansible** :
 
-### Scripts de configuration (répertoire `config/`)
+### Rôles Ansible
 
-Consultez le fichier [`config/README.md`](config/README.md) pour la documentation détaillée de chaque script.
+| Rôle | Description | Équivalent shell |
+|------|-------------|------------------|
+| **system-prepare** | Désactive le swap, configure les modules kernel et paramètres réseau | `prepare-system.sh` |
+| **docker** | Installe Docker CE et configure containerd pour Kubernetes | `install-docker.sh` |
+| **kubernetes** | Installe kubelet, kubeadm et kubectl (version 1.28) | `install-k8s.sh` |
+| **k8s-master** | Initialise le cluster, installe Flannel, génère le token pour les workers | `init-master.sh` |
+| **k8s-worker** | Attend le master et fait rejoindre le worker au cluster | `join-worker.sh` |
+| **k8s-dashboard** | Installe le Dashboard Kubernetes avec Helm | `install-dashboard.sh` |
 
-**Résumé** :
-- **`prepare-system.sh`** : Désactive le swap, configure les modules kernel et paramètres réseau
-- **`install-docker.sh`** : Installe Docker CE et configure containerd pour Kubernetes
-- **`install-k8s.sh`** : Installe kubelet, kubeadm et kubectl (version 1.28)
-- **`init-master.sh`** : Initialise le cluster, installe Flannel, génère le token pour les workers
-- **`join-worker.sh`** : Attend le master et fait rejoindre le worker au cluster
+### Avantages de l'architecture Ansible
 
-### Avantages de cette architecture
+1. **Idempotence** : Les playbooks peuvent être réexécutés sans effets secondaires
+2. **Modularité** :  Chaque rôle a une responsabilité unique et claire
+3. **Réutilisabilité** : Les rôles peuvent être utilisés dans d'autres projets
+4. **Maintenabilité** :  Modification d'un seul rôle sans toucher aux autres
+5. **Lisibilité** : Syntaxe YAML claire et déclarative
+6. **Testabilité** : Chaque rôle peut être testé séparément
+7. **Gestion des erreurs** : Meilleure gestion des erreurs et des retries
 
-1. **Modularité** : Chaque script a une responsabilité unique
-2. **Réutilisabilité** : Les scripts peuvent être utilisés indépendamment
-3. **Maintenance facilitée** : Modification d'un seul script sans toucher aux autres
-4. **Lisibilité** : Le fichier `provision.sh` est clair et concis
-5. **Testabilité** : Chaque script peut être testé séparément
+## Paramètres configurables
 
-### Résumé des commandes Linux utilisées
+### Adresses IP des VMs
+
+Définies dans le `Vagrantfile` et `inventory.ini` :
+- Master : `192.168.56.10`
+- Worker 1 : `192.168.56.11`
+- Worker 2 : `192.168.56.12`
+
+### Version Kubernetes
+
+Définie dans le rôle `kubernetes` : **v1.28**
+
+### Pod Network CIDR
+
+Définie dans le rôle `k8s-master` : `10.244.0.0/16` (Flannel)
+
+### Ressources des VMs
+
+Configurables dans le `Vagrantfile` :
+- Master : 2 CPUs, 2048 MB RAM
+- Workers : 2 CPUs, 2048 MB RAM
+
+### Synchronisation NFS
+
+Le Vagrantfile configure automatiquement : 
+- **Type** : NFS version 4
+- **Protocole** : TCP (UDP désactivé)
+- **Répertoire partagé** : `.` (répertoire courant) → `/vagrant` dans les VMs
+
+## Ressources et documentation
+
+- [Documentation Kubernetes](https://kubernetes.io/docs/home/)
+- [Documentation Ansible](https://docs.ansible.com/)
+- [Documentation Vagrant](https://www.vagrantup.com/docs)
+- [Documentation Flannel CNI](https://github.com/flannel-io/flannel)
+
+## Résumé des commandes principales
 
 | Commande | Usage |
 |----------|-------|
-| `apt-get update` | Met à jour la liste des paquets disponibles |
-| `apt-get install -y` | Installe des paquets sans confirmation interactive |
-| `apt-mark hold` | Verrouille la version d'un paquet pour empêcher les mises à jour |
-| `sed -i` | Modifie un fichier en place avec des expressions régulières |
-| `systemctl enable` | Active le démarrage automatique d'un service au boot |
-| `systemctl restart` | Redémarre un service systemd |
-| `modprobe` | Charge des modules dans le kernel Linux |
-| `curl -fsSL` | Télécharge des fichiers de manière robuste et silencieuse |
-| `chmod` | Modifie les permissions d'accès aux fichiers |
-| `chown` | Change le propriétaire et/ou le groupe d'un fichier |
-| `sysctl --system` | Recharge tous les paramètres kernel depuis `/etc/sysctl.d/` |
+| `vagrant up` | Démarre et provisionne les VMs |
+| `vagrant halt` | Arrête les VMs |
+| `vagrant destroy -f` | Supprime complètement les VMs |
+| `vagrant ssh vm-master` | Se connecte au master |
+| `vagrant provision` | Re-exécute le provisioning Ansible |
+| `vagrant reload` | Redémarre les VMs |
+| `ansible-playbook playbook.yml` | Exécute le playbook manuellement |
 
+## Support
+
+Pour toute question ou problème, consultez les logs :  
+```bash
+vagrant ssh vm-master -c 'sudo journalctl -u kubelet -n 100'
+```
