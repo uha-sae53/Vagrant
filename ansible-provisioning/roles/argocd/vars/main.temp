@@ -1,7 +1,7 @@
 # Variables pour ArgoCD
 github_username: "uha-sae53"
-github_token: "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"
-github_email: "contact@uha-sae53.com"
+github_token: "X"
+github_email: "X"
 
 # Repositories privés à configurer dans ArgoCD
 argocd_repos:

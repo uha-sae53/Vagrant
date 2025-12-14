@@ -29,7 +29,7 @@ spec:
       initContainers:
         - name: wait-for-db
           image: busybox:latest
-          command: ['sh', '-c', 'until nc -z dbcommandes 3306; do echo waiting for db; sleep 2; done;']
+          command: ['sh', '-c', 'until nc -z dbcommandes 3309; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-commandes:latest
           name: apicommandes

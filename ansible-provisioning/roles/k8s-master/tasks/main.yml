@@ -160,3 +160,20 @@
 # NOTE: Les manifests applicatifs ne sont PAS deployes ici
 # Ils sont geres par ArgoCD via les Applications dans /vagrant/manifests/argocd-apps/
 # Cela evite les conflits de ports et permet le GitOps avec auto-sync
+
+# Créer le namespace apps pour les applications et databases
+- name: Créer namespace apps
+  command: kubectl create namespace apps
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: ns_apps_result
+  failed_when: false
+  changed_when: "'created' in ns_apps_result.stdout"
+
+# Déployer les bases de données dans le namespace apps
+- name: Appliquer les manifests databases dans apps
+  command: kubectl apply -f /vagrant/manifests/databases/ -n apps
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: db_apply_result
+  changed_when: "'created' in db_apply_result.stdout or 'configured' in db_apply_result.stdout"
