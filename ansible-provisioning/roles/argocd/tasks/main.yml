@@ -1,0 +1,81 @@
+---
+# Installation d'ArgoCD pour le CD
+- name: Creer namespace argocd
+  command: kubectl create namespace argocd
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+
+- name: Installer ArgoCD
+  command: kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: argocd_install
+  retries: 3
+  delay: 10
+  until: argocd_install.rc == 0
+  ignore_errors: yes
+
+- name: Attendre deployments argocd
+  command: kubectl wait --for=condition=available --timeout=300s deployment --all -n argocd
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  retries: 3
+  delay: 10
+  register: argocd_wait
+  until: argocd_wait.rc == 0
+
+- name: Patcher service argocd-server en NodePort
+  command: kubectl patch svc argocd-server -n argocd -p '{"spec":{"type":"NodePort","ports":[{"port":443,"targetPort":8080,"nodePort":30808}]}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Recuperer mot de passe admin ArgoCD
+  shell: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: argocd_password
+  changed_when: false
+
+
+# Créer un secret ArgoCD par repo privé (format stringData, noms minuscules)
+- name: Créer les secrets ArgoCD pour chaque repo privé
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argo-repo-{{ item.name | lower }}
+        namespace: argocd
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      stringData:
+        url: "{{ item.url }}"
+        username: "uha-sae53"
+        password: "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"
+        type: git
+  loop:
+    - { name: vagrant, url: "https://github.com/uha-sae53/Vagrant.git" }
+    - { name: frontend, url: "https://github.com/uha-sae53/Frontend.git" }
+    - { name: api-catalogue, url: "https://github.com/uha-sae53/api-catalogue.git" }
+    - { name: api-panier, url: "https://github.com/uha-sae53/api-panier.git" }
+    - { name: api-commandes, url: "https://github.com/uha-sae53/api-commandes.git" }
+    - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  ignore_errors: yes
+  no_log: true
+
+- name: Afficher infos ArgoCD
+  debug:
+    msg:
+      - "=========================================="
+      - "ArgoCD installé avec succès"
+      - "=========================================="
+      - ""
+      - "URL d'accès : https://192.168.56.10:30808"
+      - ""
+      - "Login : admin"
+      - "Password : {{ argocd_password.stdout }}"
+      - ""

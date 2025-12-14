@@ -42,6 +42,10 @@ if [[ "$HOSTNAME" == "master" ]]; then
     echo ""
     echo "[5] Installation du Dashboard Kubernetes (Master only)"
     bash $CONFIG_DIR/install-dashboard.sh
+    
+    echo ""
+    echo "[6] Installation d'ArgoCD (Master only)"
+    bash $CONFIG_DIR/install-argocd.sh
 fi
 
 echo ""

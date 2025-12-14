@@ -51,3 +51,12 @@
   roles:
     - k8s-dashboard
 
+# argocd pour le CD
+- name: Installer ArgoCD
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - argocd
+

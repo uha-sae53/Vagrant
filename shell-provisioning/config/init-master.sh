@@ -87,3 +87,10 @@ if [ -d "/vagrant/manifests" ]; then
 else
 	echo "[Master] Dossier /vagrant/manifests introuvable, skip."
 fi
+
+echo "[Master] Installation d'ArgoCD..."
+if [ -f "/vagrant/config/install-argocd.sh" ]; then
+	bash /vagrant/config/install-argocd.sh
+else
+	echo "[Master] Script install-argocd.sh introuvable, skip."
+fi

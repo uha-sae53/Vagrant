@@ -53,14 +53,21 @@
 - name: Attendre apt
 # Regle par chatGPT pour eviter les conflits apt
   shell: |
-    for i in {1..60}; do
-      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
+    for i in {1..120}; do
+      if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && \
+         ! fuser /var/lib/dpkg/lock >/dev/null 2>&1 && \
+         ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
         exit 0
+      fi
+      if [ $i -gt 60 ]; then
+        killall apt apt-get dpkg 2>/dev/null || true
       fi
       sleep 2
     done
-    done
+    killall -9 apt apt-get dpkg 2>/dev/null || true
+    sleep 2
   changed_when: false
+
 - name: Verrouiller versions k8s
   dpkg_selections:
     name: "{{ item }}"
