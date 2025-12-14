@@ -24,6 +24,8 @@ spec:
       labels:
         io.kompose.service: apicommandes
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       initContainers:
         - name: wait-for-db
           image: busybox:1.28

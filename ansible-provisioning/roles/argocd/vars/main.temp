@@ -1,0 +1,13 @@
+# Variables pour ArgoCD
+github_username: "uha-sae53"
+github_token: "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"
+github_email: "contact@uha-sae53.com"
+
+# Repositories privés à configurer dans ArgoCD
+argocd_repos:
+  - { name: vagrant, url: "https://github.com/uha-sae53/Vagrant.git" }
+  - { name: frontend, url: "https://github.com/uha-sae53/Frontend.git" }
+  - { name: api-catalogue, url: "https://github.com/uha-sae53/api-catalogue.git" }
+  - { name: api-panier, url: "https://github.com/uha-sae53/api-panier.git" }
+  - { name: api-commandes, url: "https://github.com/uha-sae53/api-commandes.git" }
+  - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }

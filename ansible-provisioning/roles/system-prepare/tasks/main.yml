@@ -63,7 +63,7 @@
 - name: Check docker
   command: which docker
   register: docker_check
-  ignore_errors: yes
+  failed_when: false
   changed_when: false
 
 - name: Login ghcr

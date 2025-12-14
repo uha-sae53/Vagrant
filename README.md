@@ -227,6 +227,13 @@ Vous devriez voir :
 | `network is not active` | Démarrer le réseau : `sudo virsh net-start vagrant-libvirt` |
 | `Address already in use` | Un autre réseau utilise déjà cette plage.  Supprimez-le ou modifiez l'adresse |
 
+## Reboot de la machine hôte
+Après avoir installé KVM/libvirt et configuré le réseau, il est recommandé de redémarrer la machine hôte pour s'assurer que tous les services sont correctement initialisés.
+
+```bash
+sudo reboot
+```
+
 ## Déploiement de l'infrastructure
 
 ### Démarrage du cluster complet

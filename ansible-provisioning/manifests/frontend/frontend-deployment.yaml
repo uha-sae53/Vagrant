@@ -20,6 +20,8 @@ spec:
       labels:
         io.kompose.service: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - image: ghcr.io/uha-sae53/frontend/frontend-manager:latest
           name: frontend

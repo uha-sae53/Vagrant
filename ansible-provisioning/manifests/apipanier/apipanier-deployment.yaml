@@ -24,6 +24,8 @@ spec:
       labels:
         io.kompose.service: api-panier
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - image: ghcr.io/uha-sae53/api-panier:latest
           name: api-panier

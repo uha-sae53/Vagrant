@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: commandes-manager-application
+  namespace: argocd
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: commandes-manager=ghcr.io/uha-sae53/api-commandes
+    argocd-image-updater.argoproj.io/commandes-manager.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: argocd
+spec:
+  destination:
+    namespace: apps
+    server: https://kubernetes.default.svc
+  source:
+    path: ansible-provisioning/manifests/apicommandes
+    repoURL: https://github.com/uha-sae53/Vagrant.git
+    targetRevision: main
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: catalogue-manager-application
+  namespace: argocd
+  annotations:
+    argocd-image-updater.argoproj.io/image-list: catalogue-manager=ghcr.io/uha-sae53/api-catalogue
+    argocd-image-updater.argoproj.io/catalogue-manager.update-strategy: latest
+    argocd-image-updater.argoproj.io/write-back-method: argocd
+spec:
+  destination:
+    namespace: apps
+    server: https://kubernetes.default.svc
+  source:
+    path: ansible-provisioning/manifests/apicatalogue
+    repoURL: https://github.com/uha-sae53/Vagrant.git
+    targetRevision: main
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -101,14 +101,35 @@
 
 - name: Config containerd par defaut
   shell: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  changed_when: true
+
+- name: Attendre creation fichier config
+  wait_for:
+    path: /etc/containerd/config.toml
+    state: present
+    timeout: 30
 
 # important pour k8s
 - name: Mettre SystemdCgroup
-  lineinfile:
+  replace:
     path: /etc/containerd/config.toml
-    regexp: 'SystemdCgroup = false'
-    line: '            SystemdCgroup = true'
-    backrefs: yes
+    regexp: '(\s+)SystemdCgroup\s*=\s*false'
+    replace: '\1SystemdCgroup = true'
+
+- name: Verifier config SystemdCgroup appliquee
+  shell: grep -q "SystemdCgroup = true" /etc/containerd/config.toml
+  register: systemd_cgroup_check
+  failed_when: systemd_cgroup_check.rc != 0
+  changed_when: false
+
+- name: Configurer sandbox_image pour Kubernetes
+  replace:
+    path: /etc/containerd/config.toml
+    regexp: '(\s+)sandbox_image\s*=\s*".*"'
+    replace: '\1sandbox_image = "registry.k8s.io/pause:3.9"'
+  ignore_errors: yes
 
 - name: Restart containerd
   systemd:
@@ -119,7 +140,7 @@
 
 - name: Attendre containerd
   pause:
-    seconds: 5
+    seconds: 10
 
 - name: Check socket containerd
   stat:

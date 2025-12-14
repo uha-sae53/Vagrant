@@ -37,35 +37,141 @@
   register: argocd_password
   changed_when: false
 
+# Créer les secrets ArgoCD pour chaque repo privé avec kubectl
+- name: Supprimer anciens secrets ArgoCD si existants
+  shell: |
+    kubectl delete secret -n argocd argo-repo-{{ item.name | lower }} --ignore-not-found=true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  loop: "{{ argocd_repos }}"
+  no_log: true
 
-# Créer un secret ArgoCD par repo privé (format stringData, noms minuscules)
 - name: Créer les secrets ArgoCD pour chaque repo privé
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: argo-repo-{{ item.name | lower }}
-        namespace: argocd
-        labels:
-          argocd.argoproj.io/secret-type: repository
-      stringData:
-        url: "{{ item.url }}"
-        username: "uha-sae53"
-        password: "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"
-        type: git
-  loop:
-    - { name: vagrant, url: "https://github.com/uha-sae53/Vagrant.git" }
-    - { name: frontend, url: "https://github.com/uha-sae53/Frontend.git" }
-    - { name: api-catalogue, url: "https://github.com/uha-sae53/api-catalogue.git" }
-    - { name: api-panier, url: "https://github.com/uha-sae53/api-panier.git" }
-    - { name: api-commandes, url: "https://github.com/uha-sae53/api-commandes.git" }
-    - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
+  shell: |
+    kubectl create secret generic argo-repo-{{ item.name | lower }} \
+      --from-literal=type=git \
+      --from-literal=url="{{ item.url }}" \
+      --from-literal=username="{{ github_username }}" \
+      --from-literal=password="{{ github_token }}" \
+      -n argocd
+    kubectl label secret argo-repo-{{ item.name | lower }} \
+      -n argocd argocd.argoproj.io/secret-type=repository --overwrite
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  loop: "{{ argocd_repos }}"
+  no_log: true
+  register: create_secrets_result
+  failed_when: create_secrets_result.rc != 0 and 'AlreadyExists' not in create_secrets_result.stderr
+
+- name: Telecharger manifeste ArgoCD Image Updater
+  get_url:
+    url: https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/stable/config/install.yaml
+    dest: /tmp/argocd-image-updater.yaml
+    mode: '0644'
+  failed_when: false
+
+- name: Modifier tous les namespaces vers argocd
+  shell: |
+    sed -i 's/namespace: argocd-image-updater-system/namespace: argocd/g' /tmp/argocd-image-updater.yaml
+    sed -i 's/namespace: argocd-image-updater/namespace: argocd/g' /tmp/argocd-image-updater.yaml
+    sed -i 's/namespace: argocd-system/namespace: argocd/g' /tmp/argocd-image-updater.yaml
+    sed -i 's/argocd-image-updater-system/argocd/g' /tmp/argocd-image-updater.yaml
+    sed -i 's/argocd-system/argocd/g' /tmp/argocd-image-updater.yaml
+  failed_when: false
+
+- name: Verifier remplacement namespace
+  shell: |
+    if grep -q "argocd-image-updater-system\|argocd-system" /tmp/argocd-image-updater.yaml; then
+      echo "ERREUR: References aux anciens namespaces"
+      exit 1
+    fi
+  register: namespace_check
+  failed_when: false
+  changed_when: false
+
+- name: Installer ArgoCD Image Updater dans namespace argocd
+  command: kubectl apply -f /tmp/argocd-image-updater.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: image_updater_install
+  failed_when: false
+
+- name: Créer secret ghcr.io pour ArgoCD Image Updater
+  shell: |
+    kubectl create secret docker-registry ghcr-secret \
+      --docker-server=ghcr.io \
+      --docker-username={{ github_username }} \
+      --docker-password={{ github_token }} \
+      --docker-email={{ github_email }} \
+      -n argocd --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  no_log: true
+  register: ghcr_secret_result
+  failed_when: false
+  changed_when: "'created' in ghcr_secret_result.stdout or 'configured' in ghcr_secret_result.stdout"
+
+- name: Créer namespace apps pour les applications
+  command: kubectl create namespace apps --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  failed_when: false
+
+- name: Créer secret ghcr.io dans namespace apps
+  shell: |
+    kubectl create secret docker-registry ghcr-secret \
+      --docker-server=ghcr.io \
+      --docker-username={{ github_username }} \
+      --docker-password={{ github_token }} \
+      --docker-email={{ github_email }} \
+      -n apps --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  no_log: true
+  register: ghcr_secret_apps_result
+  failed_when: false
+  changed_when: "'created' in ghcr_secret_apps_result.stdout or 'configured' in ghcr_secret_apps_result.stdout"
+
+- name: Attendre ArgoCD Image Updater
+  command: kubectl wait --for=condition=available --timeout=120s deployment argocd-image-updater -n argocd
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: wait_image_updater
+  failed_when: false
+  when: image_updater_install.rc == 0
+
+- name: Configurer ArgoCD Image Updater avec log-level
+  shell: |
+    kubectl patch deployment argocd-image-updater -n argocd --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--loglevel=debug"}]'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  failed_when: false
+  when: wait_image_updater is defined and wait_image_updater.rc == 0
+
+- name: Configurer registries dans ConfigMap
+  shell: |
+    kubectl create configmap argocd-image-updater-config -n argocd --from-literal=registries.conf="registries:
+    - name: ghcr
+      api_url: https://ghcr.io
+      prefix: ghcr.io
+      credentials: secret:argocd/ghcr-secret
+      defaultns: library" --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  failed_when: false
+
+- name: Restart ArgoCD Image Updater pour appliquer config
+  command: kubectl rollout restart deployment argocd-image-updater -n argocd
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  failed_when: false
+  when: wait_image_updater is defined and wait_image_updater.rc == 0
+
+- name: Déployer les applications ArgoCD
+  command: kubectl apply -f /vagrant/manifests/argocd-apps/
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   ignore_errors: yes
-  no_log: true
 
 - name: Afficher infos ArgoCD
   debug:
@@ -78,4 +184,13 @@
       - ""
       - "Login : admin"
       - "Password : {{ argocd_password.stdout }}"
+      - ""
+      - "Applications déployées:"
+      - "  - client-manager-application"
+      - "  - catalogue-manager-application"
+      - "  - panier-manager-application"
+      - "  - commandes-manager-application"
+      - "  - frontend-application"
+      - ""
+      - "ArgoCD Image Updater installé pour l'auto-rebuild"
       - ""

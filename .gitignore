@@ -8,4 +8,5 @@
 .idea/
 .master-ready
 join.sh
+ansible-provisioning/roles/argocd/vars/main.yml
 *env

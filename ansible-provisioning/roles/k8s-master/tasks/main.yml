@@ -1,9 +1,69 @@
 ---
 # init du cluster
+- name: Check si cluster deja init
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: k8s_initialized
+
+- name: Reset kubeadm si echec precedent
+  command: kubeadm reset -f
+  when: not k8s_initialized.stat.exists
+  ignore_errors: yes
+
+- name: Nettoyer config kubelet
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/kubernetes/manifests
+    - /var/lib/kubelet
+    - /etc/cni/net.d
+  when: not k8s_initialized.stat.exists
+  ignore_errors: yes
+
+- name: Recreer dossiers
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /etc/kubernetes/manifests
+    - /var/lib/kubelet
+  when: not k8s_initialized.stat.exists
+
+- name: Restart containerd avant init
+  systemd:
+    name: containerd
+    state: restarted
+  when: not k8s_initialized.stat.exists
+
+- name: Restart kubelet avant init
+  systemd:
+    name: kubelet
+    state: restarted
+  when: not k8s_initialized.stat.exists
+  ignore_errors: yes
+
+- name: Attendre services
+  pause:
+    seconds: 5
+  when: not k8s_initialized.stat.exists
+
 - name: Init cluster k8s
-  command: kubeadm init --apiserver-advertise-address=192.168.56.10 --pod-network-cidr=10.244.0.0/16
-  args:
-    creates: /etc/kubernetes/admin.conf
+  command: kubeadm init --apiserver-advertise-address=192.168.56.10 --pod-network-cidr=10.244.0.0/16 --v=5
+  when: not k8s_initialized.stat.exists
+  register: kubeadm_init
+  failed_when: false
+
+- name: Afficher logs kubeadm si erreur
+  debug:
+    msg: "{{ kubeadm_init.stdout_lines }}"
+  when: not k8s_initialized.stat.exists and kubeadm_init.rc != 0
+
+- name: Fail si kubeadm init a echoue
+  fail:
+    msg: "kubeadm init a échoué. Vérifiez les logs ci-dessus."
+  when: not k8s_initialized.stat.exists and kubeadm_init.rc != 0
 
 - name: Creer dossier .kube vagrant
   file:
@@ -97,10 +157,6 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
-# deployer les manifests de l'app
-- name: Appliquer manifests
-  shell: kubectl apply -f /vagrant/manifests/ --recursive 2>&1 | grep -v "unchanged" || true
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  register: apply_result
-  changed_when: "'created' in apply_result.stdout or 'configured' in apply_result.stdout"
+# NOTE: Les manifests applicatifs ne sont PAS deployes ici
+# Ils sont geres par ArgoCD via les Applications dans /vagrant/manifests/argocd-apps/
+# Cela evite les conflits de ports et permet le GitOps avec auto-sync
