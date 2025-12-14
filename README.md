@@ -57,7 +57,9 @@ sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils 
 1. Ajouter votre utilisateur au groupe libvirt
 
 ```bash
-do usermod -aG libvirt $(whoami)Appliquer les changements de groupe sans se déconnecter
+do usermod -aG libvirt $(whoami)
+
+#Appliquer les changements de groupe sans se déconnecter
 newgrp libvirt
 ```
 Remarque : Après avoir exécuté ces commandes, il peut être nécessaire de redémarrer votre session ou votre machine pour que les changements prennent pleinement effet.
