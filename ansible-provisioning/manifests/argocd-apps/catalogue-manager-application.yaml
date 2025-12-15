@@ -1,3 +1,4 @@
+# ===== ansible-provisioning/manifests/argocd-apps/catalogue-manager-application.yaml =====
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,6 +7,8 @@ metadata:
   annotations:
     argocd-image-updater.argoproj.io/image-list: catalogue-manager=ghcr.io/uha-sae53/api-catalogue
     argocd-image-updater.argoproj.io/catalogue-manager.update-strategy: latest
+    argocd-image-updater.argoproj.io/catalogue-manager.pull-secret: secret:argocd/ghcr-secret
+    argocd-image-updater.argoproj.io/catalogue-manager.force-update: "true"
     argocd-image-updater.argoproj.io/write-back-method: argocd
 spec:
   destination:
@@ -22,3 +25,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
+---

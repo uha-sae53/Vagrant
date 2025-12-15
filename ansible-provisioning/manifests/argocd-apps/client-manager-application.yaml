@@ -1,11 +1,14 @@
+# ===== ansible-provisioning/manifests/argocd-apps/client-manager-application.yaml =====
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: client-manager-application
   namespace: argocd
   annotations:
-    argocd-image-updater.argoproj.io/image-list: ghcr.io/uha-sae53/api-clients/client-manager
+    argocd-image-updater.argoproj.io/image-list: client-manager=ghcr.io/uha-sae53/api-clients/client-manager
     argocd-image-updater.argoproj.io/client-manager.update-strategy: latest
+    argocd-image-updater.argoproj.io/client-manager.pull-secret: secret:argocd/ghcr-secret
+    argocd-image-updater.argoproj.io/client-manager.force-update: "true"
     argocd-image-updater.argoproj.io/write-back-method: argocd
 spec:
   destination:
@@ -22,3 +25,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
+---

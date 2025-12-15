@@ -1,3 +1,4 @@
+# ===== ansible-provisioning/manifests/argocd-apps/frontend-application.yaml =====
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,6 +7,8 @@ metadata:
   annotations:
     argocd-image-updater.argoproj.io/image-list: frontend=ghcr.io/uha-sae53/frontend/frontend-manager
     argocd-image-updater.argoproj.io/frontend.update-strategy: latest
+    argocd-image-updater.argoproj.io/frontend.pull-secret: secret:argocd/ghcr-secret
+    argocd-image-updater.argoproj.io/frontend.force-update: "true"
     argocd-image-updater.argoproj.io/write-back-method: argocd
 spec:
   destination:
@@ -22,3 +25,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+---
