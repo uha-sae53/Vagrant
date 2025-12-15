@@ -34,6 +34,6 @@ spec:
         - image: ghcr.io/uha-sae53/api-commandes:latest
           name: apicommandes
           ports:
-            - containerPort: 8000
+            - containerPort: 8003
               protocol: TCP
       restartPolicy: Always
