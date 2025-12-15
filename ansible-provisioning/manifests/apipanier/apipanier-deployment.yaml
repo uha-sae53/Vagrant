@@ -30,6 +30,6 @@ spec:
         - image: ghcr.io/uha-sae53/api-panier:latest
           name: api-panier
           ports:
-            - containerPort: 8000
+            - containerPort: 8002
               protocol: TCP
       restartPolicy: Always

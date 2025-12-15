@@ -34,7 +34,7 @@ spec:
             - name: CATALOGUE_API_URL
               value: "http://apicatalogue:8001"
             - name: PANIER_API_URL
-              value: "http://apipanier:8002"
+              value: "http://api-panier:8002"
             - name: DEBUG
               value: "True"
             - name: DJANGO_ALLOWED_HOST
