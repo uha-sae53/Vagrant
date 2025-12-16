@@ -31,18 +31,18 @@ spec:
       initContainers:
         - name: wait-for-db
           image: busybox:latest
-          command: ['sh', '-c', 'until nc -z dbcatalogue 3307; do echo waiting for db; sleep 2; done;']
+          command: ['sh', '-c', 'until nc -z dbcatalogue 3306; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-catalogue:latest
           name: apicatalogue
           ports:
-            - containerPort: 8001
+            - containerPort: 8000
               protocol: TCP
           env:
             - name: DB_CATALOGUE_HOST
               value: "dbcatalogue"
             - name: DB_CATALOGUE_PORT
-              value: "3307"
+              value: "3306"
             - name: DB_CATALOGUE_NAME
               value: "catalogue"
             - name: DB_CATALOGUE_USER

@@ -10,10 +10,11 @@ metadata:
     io.kompose.service: dbcommandes
   name: dbcommandes
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - name: "3309"
       port: 3309
       targetPort: 3306
+      nodePort: 30309
   selector:
     io.kompose.service: dbcommandes
