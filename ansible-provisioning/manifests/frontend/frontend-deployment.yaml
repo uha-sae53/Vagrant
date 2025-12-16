@@ -24,6 +24,7 @@ spec:
         - name: ghcr-secret
       containers:
         - image: ghcr.io/uha-sae53/frontend/frontend-manager:latest
+          imagePullPolicy: IfNotPresent
           name: frontend
           ports:
             - containerPort: 8004

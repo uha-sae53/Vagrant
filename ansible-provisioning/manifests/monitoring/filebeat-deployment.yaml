@@ -28,6 +28,7 @@ spec:
             - -e
             - -strict.perms=false
           image: docker.elastic.co/beats/filebeat:8.11.0
+          imagePullPolicy: IfNotPresent
           name: filebeat
           ports:
             - containerPort: 5044

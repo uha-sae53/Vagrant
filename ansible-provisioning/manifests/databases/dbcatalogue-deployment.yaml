@@ -33,6 +33,7 @@ spec:
             - name: MARIADB_ROOT_PASSWORD
               value: catalogue
           image: mariadb:latest
+          imagePullPolicy: IfNotPresent
           livenessProbe:
             exec:
               command:
