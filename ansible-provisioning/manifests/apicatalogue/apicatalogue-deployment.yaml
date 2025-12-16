@@ -32,7 +32,7 @@ spec:
         - name: wait-for-db
           image: busybox:latest
           # ✅ CORRECTION : Utiliser le port 3306 (port interne du service)
-          command: ['sh', '-c', 'until nc -z dbcatalogue 3306; do echo waiting for db; sleep 2; done;']
+          command: ['sh', '-c', 'until nc -z dbcatalogue 3307; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-catalogue:latest
           name: apicatalogue
@@ -43,7 +43,7 @@ spec:
             - name: DB_CATALOGUE_HOST
               value: "dbcatalogue"
             - name: DB_CATALOGUE_PORT
-              value: "3306"  # ✅ Cohérent avec le port du service
+              value: "3307"  # ✅ Cohérent avec le port du service
             - name: DB_CATALOGUE_NAME
               value: "catalogue"
             - name: DB_CATALOGUE_USER

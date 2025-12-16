@@ -26,6 +26,11 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-secret
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:latest
+          # ✅ Attendre que Redis soit disponible sur le port 6379
+          command: ['sh', '-c', 'until nc -z dbpanier 6379; do echo waiting for redis; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-panier:latest
           name: api-panier
@@ -36,16 +41,11 @@ spec:
             - name: DB_PANIER_HOST
               value: "dbpanier"
             - name: DB_PANIER_PORT
-              value: "3306"
+              value: "6379"  # ✅ Redis port
             - name: DB_PANIER_NAME
               value: "panier"
             - name: DB_PANIER_USER
               value: "panier"
             - name: DB_PANIER_PASSWORD
               value: "panier"
-              
-          initContainers:
-            - name: wait-for-db
-              image: busybox:latest
-              command: ['sh', '-c', 'until nc -z dbpanier 3306; do echo waiting for db; sleep 2; done;']
       restartPolicy: Always
