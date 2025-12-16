@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbpanier
+  labels:
+    io.kompose.service: dbpanier
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: dbpanier
+  template:
+    metadata:
+      labels:
+        io.kompose.service: dbpanier
+    spec:
+      containers:
+        - name: dbpanier
+          image: mariadb:10.11
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: panier
+            - name: MYSQL_DATABASE
+              value: panier
+            - name: MYSQL_USER
+              value: panier
+            - name: MYSQL_PASSWORD
+              value: panier
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+          volumeMounts:
+            - name: dbpanier-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: dbpanier-data
+          persistentVolumeClaim:
+            claimName: dbpanier-persistentvolumeclaim

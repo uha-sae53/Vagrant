@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dbpanier
+  labels:
+    io.kompose.service: dbpanier
+spec:
+  type: NodePort
+  ports:
+    - name: "3308"
+      port: 3308
+      targetPort: 3306
+      nodePort: 30308
+  selector:
+    io.kompose.service: dbpanier
