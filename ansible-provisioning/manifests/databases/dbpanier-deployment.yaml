@@ -1,29 +1,51 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dbpanier
+  annotations:
+    kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+    kompose.version: 1.37.0 (fb0539e64)
+    service: api_panier
+    type: api
   labels:
-    io.kompose.service: dbpanier
+    io.kompose.service: api-panier
+  name: api-panier
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: dbpanier
+      io.kompose.service: api-panier
   template:
     metadata:
+      annotations:
+        kompose.cmd: kompose convert -f ./docker/docker-compose.yml -o ./manifests/
+        kompose.version: 1.37.0 (fb0539e64)
+        service: api_panier
+        type: api
       labels:
-        io.kompose.service: dbpanier
+        io.kompose.service: api-panier
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      initContainers:
+        - name: wait-for-db
+          image: busybox:latest
+          # ✅ Redis utilise le port 6379
+          command: ['sh', '-c', 'until nc -z dbpanier 6379; do echo waiting for redis; sleep 2; done;']
       containers:
-        - name: dbpanier
-          image: redis:7.2
+        - image: ghcr.io/uha-sae53/api-panier:latest
+          name: api-panier
           ports:
-            - containerPort: 6379
+            - containerPort: 8002
               protocol: TCP
-          volumeMounts:
-            - name: dbpanier-data
-              mountPath: /data
-      volumes:
-        - name: dbpanier-data
-          persistentVolumeClaim:
-            claimName: dbpanier-persistentvolumeclaim
+          env:
+            - name: DB_PANIER_HOST
+              value: "dbpanier"
+            - name: DB_PANIER_PORT
+              value: "6379"  # ✅ Redis port
+            - name: DB_PANIER_NAME
+              value: "panier"
+            - name: DB_PANIER_USER
+              value: "panier"
+            - name: DB_PANIER_PASSWORD
+              value: "panier"
+      restartPolicy: Always
