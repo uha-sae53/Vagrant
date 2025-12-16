@@ -43,7 +43,7 @@
     kubectl delete secret -n argocd argo-repo-{{ item.name | lower }} --ignore-not-found=true
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  loop: "{{ argocd_repos }}"
+  loop: "{{ argocd_repos | default([]) }}"
   no_log: true
 
 - name: Créer les secrets ArgoCD pour chaque repo privé
@@ -58,7 +58,7 @@
       -n argocd argocd.argoproj.io/secret-type=repository --overwrite
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  loop: "{{ argocd_repos }}"
+  loop: "{{ argocd_repos | default([]) }}"
   no_log: true
   register: create_secrets_result
   failed_when: create_secrets_result.rc != 0 and 'AlreadyExists' not in create_secrets_result.stderr
