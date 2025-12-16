@@ -1,6 +1,5 @@
 ---
 - name: Attendre avant installation Helm
-# Regle par chatGPT pour eviter les conflits apt
   shell: |
     for i in {1..60}; do
       if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
@@ -12,7 +11,7 @@
     sleep 2
   changed_when: false
 
-- name: Installer les dépendances pour Helm
+- name: Installer les dependances pour Helm
   apt:
     name:
       - curl
@@ -24,13 +23,12 @@
   retries: 5
   delay: 10
 
-- name: Télécharger la clé GPG de Helm
+- name: Telecharger la cle GPG de Helm
   shell: curl -fsSL https://packages.buildkite.com/helm-linux/helm-debian/gpgkey | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
   args:
     creates: /usr/share/keyrings/helm.gpg
 
 - name: Attendre avant ajout repository Helm
-# Regle par chatGPT pour eviter les conflits apt
   shell: |
     for i in {1..60}; do
       if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && ! fuser /var/lib/apt/lists/lock >/dev/null 2>&1; then
@@ -49,7 +47,6 @@
     filename: helm-stable-debian
 
 - name: Attendre avant installation Helm
-# Regle par chatGPT pour eviter les conflits apt
   shell: |
     for i in {1..60}; do
       if ! fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; then
@@ -76,6 +73,9 @@
   command: helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
+  register: helm_repo_add
+  changed_when: "'already exists' not in helm_repo_add.stderr"
+  failed_when: false
 
 - name: Mettre à jour les repositories Helm
   become_user: vagrant
@@ -83,7 +83,15 @@
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
 
-- name: Déployer le Dashboard Kubernetes avec Helm
+- name: Verifier si le Dashboard est dejà installe
+  shell: helm list -n kubernetes-dashboard | grep kubernetes-dashboard
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: dashboard_pret
+  failed_when: false
+  changed_when: false
+
+- name: Deployer le Dashboard Kubernetes avec Helm (avec ressources reduites)
   become_user: vagrant
   command: >
     helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard
@@ -93,40 +101,94 @@
     --set kong.proxy.http.servicePort=80
     --set kong.proxy.tls.enabled=true
     --set kong.proxy.tls.servicePort=443
+    --set kong.resources.requests.cpu=100m
+    --set kong.resources.requests.memory=128Mi
+    --set kong.resources.limits.cpu=500m
+    --set kong.resources.limits.memory=512Mi
+    --set app.resources.requests.cpu=100m
+    --set app.resources.requests.memory=128Mi
+    --set app.resources.limits.cpu=500m
+    --set app.resources.limits.memory=512Mi
+    --timeout=10m
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
+  when: dashboard_pret.rc != 0
 
-- name: Attendre que le déploiement soit disponible
-  command: kubectl wait --for=condition=available --timeout=300s deployment/kubernetes-dashboard-kong -n kubernetes-dashboard
+- name: Attendre 30 secondes avant de verifier le deploiement
+  pause:
+    seconds: 30
+
+- name: Verifier l'etat des pods du Dashboard
+  command: kubectl get pods -n kubernetes-dashboard
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  register: dashboard_pods
+  changed_when: false
+
+- name: Afficher l'etat des pods
+  debug:
+    var: dashboard_pods.stdout_lines
+
+- name: Attendre que le deploiement soit disponible (avec retry)
+  command: kubectl wait --for=condition=available --timeout=120s deployment/kubernetes-dashboard-kong -n kubernetes-dashboard
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: dash_att
+  retries: 5
+  delay: 30
+  until: dash_att.rc == 0
+  ignore_errors: yes
+
+- name: Verifier manuellement si le pod Kong est Running (si wait a echoue)
+  shell: kubectl get pods -n kubernetes-dashboard -l app.kubernetes.io/name=kong -o jsonpath='{.items[0].status.phase}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: kong_status
+  when: dash_att.failed is defined and dash_att.failed
+  changed_when: false
+
+- name: Afficher le statut Kong si wait a echoue
+  debug:
+    msg: "Kong pod status: {{ kong_status.stdout }}"
+  when: dash_att.failed is defined and dash_att.failed
+
+- name: Continuer meme si Kong n'est pas complètement ready (warn)
+  debug:
+    msg: "Le Dashboard peut prendre quelques minutes supplementaires pour etre complètement operationnel"
+  when: dash_att.failed is defined and dash_att.failed
 
 - name: Configurer le service en NodePort
   command: >
-    kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard-kong-proxy
-    -p '{"spec": {"type": "NodePort", "ports": [{"name": "kong-proxy-tls", "port": 443, "targetPort": 8443, "nodePort": 30443}]}}'
+    kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard-kong-proxy -p '{"spec": {"type": "NodePort", "ports": [{"name": "kong-proxy-tls", "port": 443, "targetPort": 8443, "nodePort": 30443}]}}'
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  register: patch_dashboard_pod
+  failed_when: false
+  changed_when: "'patched' in patch_dashboard_pod.stdout or 'configured' in patch_dashboard_pod.stdout"
 
-- name: Vérifier le service
+- name: Verifier le service
   command: kubectl -n kubernetes-dashboard get svc kubernetes-dashboard-kong-proxy
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: false
 
-- name: Créer le ServiceAccount admin-user
+- name: Creer le ServiceAccount admin-user
   command: kubectl create serviceaccount admin-user -n kubernetes-dashboard
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
+  register: sa_create
+  failed_when: sa_create.rc != 0 and 'AlreadyExists' not in sa_create.stderr
+  changed_when: "'created' in sa_create.stdout"
 
-- name: Créer le ClusterRoleBinding
+- name: Creer le ClusterRoleBinding
   command: kubectl create clusterrolebinding admin-user-binding --clusterrole=cluster-admin --serviceaccount=kubernetes-dashboard:admin-user
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
+  register: crb_create
+  failed_when: crb_create.rc != 0 and 'AlreadyExists' not in crb_create.stderr
+  changed_when: "'created' in crb_create.stdout"
 
-- name: Récupérer le token d'accès
+- name: Recuperer le token d'accès
   command: kubectl -n kubernetes-dashboard create token admin-user
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
@@ -137,10 +199,15 @@
   debug:
     msg:
       - "=========================================="
-      - "Dashboard Kubernetes configuré avec succès"
+      - "Dashboard Kubernetes configure avec succès"
       - "=========================================="
       - ""
       - "URL d'accès : https://192.168.56.10:30443"
       - ""
       - "Token : {{ dashboard_token.stdout }}"
+      - ""
+      - "Note: Si le Dashboard n'est pas immediatement accessible,"
+      - "attendez 2-3 minutes que tous les pods soient complètement demarres."
+      - ""
+      - "Verifier l'etat: vagrant ssh vm-master -c 'kubectl get pods -n kubernetes-dashboard'"
       - ""

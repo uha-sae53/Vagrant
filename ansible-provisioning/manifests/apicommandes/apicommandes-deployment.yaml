@@ -29,13 +29,11 @@ spec:
       initContainers:
         - name: wait-for-db
           image: busybox:latest
-          # ✅ CORRECTION : Utiliser le port du service dbcommandes
           command: ['sh', '-c', 'until nc -z dbcommandes 3309; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-commandes:latest
           name: apicommandes
           ports:
-            # ✅ CORRECTION : Exposer le port 8003 (celui utilisé par le conteneur)
             - containerPort: 8003
               protocol: TCP
           env:

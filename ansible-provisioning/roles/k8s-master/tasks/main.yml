@@ -131,12 +131,20 @@
 
 # secret pour pull les images depuis github
 - name: Creer secret ghcr
-  command: >
-    kubectl create secret docker-registry ghcr-cred
-    --docker-server=ghcr.io
-    --docker-username=uha-sae53
-    --docker-password='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'
-    --namespace=default
+  shell: |
+    set -e
+    # Create or update ghcr secret in namespace 'apps'
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
+      --docker-server=ghcr.io \
+      --docker-username={{ ghcr_username | default('uha-sae53') }} \
+      --docker-password='{{ ghcr_token | default("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") }}' \
+      --namespace=apps --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
+    # Also ensure the secret exists in 'default' namespace (some manifests use default)
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
+      --docker-server=ghcr.io \
+      --docker-username={{ ghcr_username | default('uha-sae53') }} \
+      --docker-password='{{ ghcr_token | default("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") }}' \
+      --namespace=default --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   ignore_errors: yes

@@ -31,13 +31,11 @@ spec:
       initContainers:
         - name: wait-for-db
           image: busybox:latest
-          # ✅ CORRECTION : Utiliser le port 3307 (port du service dbcatalogue)
           command: ['sh', '-c', 'until nc -z dbcatalogue 3307; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-catalogue:latest
           name: apicatalogue
           ports:
-            # ✅ CORRECTION : Le container écoute sur le port 8001
             - containerPort: 8001
               protocol: TCP
           env:

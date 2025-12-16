@@ -14,7 +14,7 @@ spec:
   ports:
     - name: "8003"
       port: 8003
-      targetPort: 8003  # ✅ CORRECTION: Doit correspondre au port du conteneur
+      targetPort: 8003
       nodePort: 30803
   selector:
     io.kompose.service: apicommandes
