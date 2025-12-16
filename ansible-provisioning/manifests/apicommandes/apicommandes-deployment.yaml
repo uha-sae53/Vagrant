@@ -29,7 +29,6 @@ spec:
       initContainers:
         - name: wait-for-db
           image: busybox:latest
-          # ✅ CORRECTION : Utiliser le port 3309 (port du service)
           command: ['sh', '-c', 'until nc -z dbcommandes 3309; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-commandes:latest
@@ -37,4 +36,15 @@ spec:
           ports:
             - containerPort: 8003
               protocol: TCP
+          env:
+            - name: DB_COMMANDES_HOST
+              value: "dbcommandes"
+            - name: DB_COMMANDES_PORT
+              value: "3309"
+            - name: DB_COMMANDES_NAME
+              value: "commandes"
+            - name: DB_COMMANDES_USER
+              value: "root"
+            - name: DB_COMMANDES_PASSWORD
+              value: "commandes"
       restartPolicy: Always

@@ -29,7 +29,6 @@ spec:
       initContainers:
         - name: wait-for-redis
           image: busybox:latest
-          # ✅ Attendre que Redis soit disponible sur le port 6379
           command: ['sh', '-c', 'until nc -z dbpanier 6379; do echo waiting for redis; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-panier:latest
@@ -38,14 +37,10 @@ spec:
             - containerPort: 8002
               protocol: TCP
           env:
-            - name: DB_PANIER_HOST
+            - name: REDIS_HOST
               value: "dbpanier"
-            - name: DB_PANIER_PORT
-              value: "6379"  # ✅ Redis port
-            - name: DB_PANIER_NAME
-              value: "panier"
-            - name: DB_PANIER_USER
-              value: "panier"
-            - name: DB_PANIER_PASSWORD
-              value: "panier"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              value: ""
       restartPolicy: Always
