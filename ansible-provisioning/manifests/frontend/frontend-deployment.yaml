@@ -33,16 +33,12 @@ spec:
             - name: CLIENT_API_URL
               value: "http://apiclients:8000"
             - name: CATALOGUE_API_URL
-              # ✅ CORRECTION CRITIQUE : Utiliser le port du service Kubernetes (8001)
               value: "http://apicatalogue:8001"
             - name: PANIER_API_URL
-              # ✅ CORRECTION CRITIQUE : Utiliser le port du service Kubernetes (8002)
               value: "http://api-panier:8002"
             - name: COMMANDES_API_URL
-              # ✅ CORRECTION CRITIQUE : Utiliser le nom du service Kubernetes
               value: "http://apicommandes:8003"
             - name: AUTH_API_URL
-              # ✅ AJOUT : URL pour valider les tokens
               value: "http://apiclients:8000/api/auth/validate-token"
             - name: DEBUG
               value: "True"

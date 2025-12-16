@@ -54,8 +54,8 @@
     name: git
     state: present
     update_cache: yes
-  register: git_install
-  until: git_install is success # réessayer si échec
+  register: git_installation
+  until: git_installation is success # réessayer si échec
   retries: 3
   delay: 10
 

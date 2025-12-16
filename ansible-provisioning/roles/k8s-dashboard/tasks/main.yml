@@ -63,8 +63,8 @@
     name: helm
     state: present
     update_cache: yes
-  register: helm_install
-  until: helm_install is success
+  register: helm_installation
+  until: helm_installation is success
   retries: 5
   delay: 10
 
@@ -73,8 +73,8 @@
   command: helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
-  register: helm_repo_add
-  changed_when: "'already exists' not in helm_repo_add.stderr"
+  register: ajout_repo_helm
+  changed_when: "'already exists' not in ajout_repo_helm.stderr"
   failed_when: false
 
 - name: Mettre à jour les repositories Helm
@@ -152,9 +152,9 @@
     msg: "Kong pod status: {{ kong_status.stdout }}"
   when: dash_att.failed is defined and dash_att.failed
 
-- name: Continuer meme si Kong n'est pas complètement ready (warn)
+- name: Continuer meme si Kong n'est pas completement ready (warn)
   debug:
-    msg: "Le Dashboard peut prendre quelques minutes supplementaires pour etre complètement operationnel"
+    msg: "Le Dashboard peut prendre quelques minutes supplementaires pour etre completement operationnel"
   when: dash_att.failed is defined and dash_att.failed
 
 - name: Configurer le service en NodePort
@@ -172,6 +172,10 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   changed_when: false
 
+
+###### CONFIGURATION ACCES DASHBOARD ######
+#### Source : https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/ ####
+
 - name: Creer le ServiceAccount admin-user
   command: kubectl create serviceaccount admin-user -n kubernetes-dashboard
   environment:
@@ -188,7 +192,7 @@
   failed_when: crb_create.rc != 0 and 'AlreadyExists' not in crb_create.stderr
   changed_when: "'created' in crb_create.stdout"
 
-- name: Recuperer le token d'accès
+- name: Recuperer le token d'acces
   command: kubectl -n kubernetes-dashboard create token admin-user
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
@@ -199,15 +203,15 @@
   debug:
     msg:
       - "=========================================="
-      - "Dashboard Kubernetes configure avec succès"
+      - "Dashboard Kubernetes configure avec succes"
       - "=========================================="
       - ""
-      - "URL d'accès : https://192.168.56.10:30443"
+      - "URL d'acces : https://192.168.56.10:30443"
       - ""
       - "Token : {{ dashboard_token.stdout }}"
       - ""
       - "Note: Si le Dashboard n'est pas immediatement accessible,"
-      - "attendez 2-3 minutes que tous les pods soient complètement demarres."
+      - "attendez 2-3 minutes que tous les pods soient completement demarres."
       - ""
       - "Verifier l'etat: vagrant ssh vm-master -c 'kubectl get pods -n kubernetes-dashboard'"
       - ""

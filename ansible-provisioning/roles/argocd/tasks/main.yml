@@ -1,5 +1,9 @@
 ---
 # Installation d'ArgoCD pour le CD
+
+- name: Verifier la presence des variables requises
+  script: roles/argocd/scripts/check_vars.sh
+
 - name: Creer namespace argocd
   command: kubectl create namespace argocd
   environment:
@@ -22,8 +26,8 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   retries: 3
   delay: 10
-  register: argocd_wait
-  until: argocd_wait.rc == 0
+  register: attendre_dep
+  until: attendre_dep.rc == 0
 
 - name: Patcher service argocd-server en NodePort
   command: kubectl patch svc argocd-server -n argocd -p '{"spec":{"type":"NodePort","ports":[{"port":443,"targetPort":8080,"nodePort":30808}]}}'
@@ -37,7 +41,7 @@
   register: argocd_password
   changed_when: false
 
-# Créer les secrets ArgoCD pour chaque repo privé avec kubectl
+# Creer les secrets ArgoCD pour chaque repo prive avec kubectl
 - name: Supprimer anciens secrets ArgoCD si existants
   shell: |
     kubectl delete secret -n argocd argo-repo-{{ item.name | lower }} --ignore-not-found=true
@@ -46,7 +50,7 @@
   loop: "{{ argocd_repos | default([]) }}"
   no_log: true
 
-- name: Créer les secrets ArgoCD pour chaque repo privé
+- name: Creer les secrets ArgoCD pour chaque repo prive
   shell: |
     kubectl create secret generic argo-repo-{{ item.name | lower }} \
       --from-literal=type=git \
@@ -60,8 +64,8 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   loop: "{{ argocd_repos | default([]) }}"
   no_log: true
-  register: create_secrets_result
-  failed_when: create_secrets_result.rc != 0 and 'AlreadyExists' not in create_secrets_result.stderr
+  register: creation_secret_argo
+  failed_when: creation_secret_argo.rc != 0 and 'AlreadyExists' not in creation_secret_argo.stderr
 
 - name: Telecharger manifeste ArgoCD Image Updater
   get_url:
@@ -96,7 +100,7 @@
   register: image_updater_install
   failed_when: false
 
-- name: Créer secret ghcr.io pour ArgoCD Image Updater
+- name: Creer secret ghcr.io pour ArgoCD Image Updater
   shell: |
     kubectl create secret docker-registry ghcr-secret \
       --docker-server=ghcr.io \
@@ -111,13 +115,13 @@
   failed_when: false
   changed_when: "'created' in ghcr_secret_result.stdout or 'configured' in ghcr_secret_result.stdout"
 
-- name: Créer namespace apps pour les applications
+- name: Creer namespace apps pour les applications
   command: kubectl create namespace apps --dry-run=client -o yaml | kubectl apply -f -
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   failed_when: false
 
-- name: Créer secret ghcr.io dans namespace apps
+- name: Creer secret ghcr.io dans namespace apps
   shell: |
     kubectl create secret docker-registry ghcr-secret \
       --docker-server=ghcr.io \
@@ -136,7 +140,7 @@
   command: kubectl wait --for=condition=available --timeout=120s deployment argocd-image-updater -n argocd
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  register: wait_image_updater
+  register: attendre_image_updater
   failed_when: false
   when: image_updater_install.rc == 0
 
@@ -146,7 +150,7 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   failed_when: false
-  when: wait_image_updater is defined and wait_image_updater.rc == 0
+  when: attendre_image_updater is defined and attendre_image_updater.rc == 0
 
 - name: Configurer registries dans ConfigMap
   shell: |
@@ -165,9 +169,9 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   failed_when: false
-  when: wait_image_updater is defined and wait_image_updater.rc == 0
+  when: attendre_image_updater is defined and attendre_image_updater.rc == 0
 
-- name: Déployer les applications ArgoCD
+- name: Deployer les applications ArgoCD
   command: kubectl apply -f /vagrant/manifests/argocd-apps/
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
@@ -177,20 +181,20 @@
   debug:
     msg:
       - "=========================================="
-      - "ArgoCD installé avec succès"
+      - "ArgoCD installe avec succes"
       - "=========================================="
       - ""
-      - "URL d'accès : https://192.168.56.10:30808"
+      - "URL d'acces : https://192.168.56.10:30808"
       - ""
       - "Login : admin"
       - "Password : {{ argocd_password.stdout }}"
       - ""
-      - "Applications déployées:"
+      - "Applications deployees:"
       - "  - client-manager-application"
       - "  - catalogue-manager-application"
       - "  - panier-manager-application"
       - "  - commandes-manager-application"
       - "  - frontend-application"
       - ""
-      - "ArgoCD Image Updater installé pour l'auto-rebuild"
+      - "ArgoCD Image Updater installe pour l'auto-rebuild"
       - ""

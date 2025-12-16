@@ -38,6 +38,9 @@
   changed_when: false
 
 # install des outils k8s
+# kubelet : agent qui tourne sur chaque noeud du cluster
+# kubeadm : outil de gestion du cluster
+# kubectl : outil en ligne de commande pour interagir avec le cluster
 - name: Installer kubelet kubeadm kubectl
   apt:
     name:

@@ -26,8 +26,8 @@
       - gnupg
     state: present
     update_cache: yes
-  register: docker_deps
-  until: docker_deps is success
+  register: dependance_docker
+  until: dependance_docker is success
   retries: 5
   delay: 10
 
@@ -74,7 +74,6 @@
     sleep 2
   changed_when: false
 
-# install docker enfin
 - name: Installer docker
   apt:
     name:
@@ -83,11 +82,14 @@
       - containerd.io
     state: present
     update_cache: yes
-  register: docker_install
-  until: docker_install is success
+  register: dcker_installation
+  until: dcker_installation is success
   retries: 5
   delay: 10
 
+
+################# CONFIGURATION CONTAINERD #################
+#### Source : https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd ####
 - name: Creer dossier config containerd
   file:
     path: /etc/containerd
@@ -111,7 +113,6 @@
     state: present
     timeout: 30
 
-# important pour k8s
 - name: Mettre SystemdCgroup
   replace:
     path: /etc/containerd/config.toml
