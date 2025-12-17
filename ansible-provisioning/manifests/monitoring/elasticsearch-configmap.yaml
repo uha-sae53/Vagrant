@@ -12,5 +12,9 @@ data:
     path.data: /usr/share/elasticsearch/data
     # Run without security for local/dev only
     xpack.security.enabled: false
+    xpack.security.enrollment.enabled: false
+    xpack.security.http.ssl.enabled: false
+    xpack.security.transport.ssl.enabled: false
+
     # Reduce logging for small VMs
     logger.org.elasticsearch: INFO
