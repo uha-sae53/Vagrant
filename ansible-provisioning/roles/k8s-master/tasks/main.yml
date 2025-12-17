@@ -151,6 +151,12 @@
       --docker-username={{ ghcr_username | default('uha-sae53') }} \
       --docker-password='{{ ghcr_token | default("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") }}' \
       --namespace=default --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
+    # Also ensure the secret exists in 'argocd' namespace (used by argocd-image-updater / argocd)
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
+      --docker-server=ghcr.io \
+      --docker-username={{ ghcr_username | default('uha-sae53') }} \
+      --docker-password='{{ ghcr_token | default("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") }}' \
+      --namespace=argocd --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   ignore_errors: yes
@@ -169,7 +175,10 @@
   changed_when: false
 
 - name: Attacher secret au SA
-  command: kubectl patch serviceaccount default -p '{"imagePullSecrets":[{"name":"ghcr-cred"}]}' --namespace=default
+  shell: |
+    # Patch default ServiceAccount in default and apps namespaces to reference the ghcr secret
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf patch serviceaccount default -n default -p '{"imagePullSecrets":[{"name":"ghcr-secret"}]}' || true
+    kubectl --kubeconfig=/etc/kubernetes/admin.conf patch serviceaccount default -n apps -p '{"imagePullSecrets":[{"name":"ghcr-secret"}]}' || true
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
