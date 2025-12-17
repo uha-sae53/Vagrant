@@ -1,6 +1,9 @@
+## Ficher configMap pour Filebeat dans Kubernetes.
+## Ce fichier définit la configuration de Filebeat pour collecter les logs des conteneurs Docker
+## et les envoyer à Elasticsearch. Il inclut également des processeurs pour enrichir et
+## filtrer les logs avant leur envoi.
+
 apiVersion: v1
-data:
-  config.yaml: "filebeat.inputs:\n  # Collecte des logs de tous les conteneurs Docker\n  - type: container\n    enabled: true\n    paths:\n      - /var/lib/docker/containers/*/*.log\n    \n    # Configuration pour parser les logs JSON\n    json.keys_under_root: true\n    json.add_error_key: true\n    json.message_key: log\n    \n    processors:\n      # Ajouter les métadonnées Docker (nom du conteneur, labels, etc.)\n      - add_docker_metadata:\n          host: \"unix:///var/run/docker.sock\"\n          match_fields: [\"container.id\"]\n          labels.dedot: true\n      \n      # Parser le message pour extraire le timestamp et le niveau de log\n      - dissect:\n          tokenizer: \"[%{timestamp}] [%{process_id}] [%{log_level}] %{message}\"\n          field: \"message\"\n          target_prefix: \"gunicorn\"\n          ignore_failure: true\n      \n      # Ajouter des champs personnalisés\n      - add_fields:\n          target: ''\n          fields:\n            environment: production\n            project: sae-ecommerce\n      \n      # Renommer les champs pour une meilleure lisibilité\n      - rename:\n          fields:\n            - from: \"container.name\"\n              to: \"service_name\"\n          ignore_missing: true\n      \n      # Nettoyer les champs inutiles pour réduire la taille\n      - drop_fields:\n          fields: \n            - \"agent.ephemeral_id\"\n            - \"agent.id\" \n            - \"ecs.version\"\n            - \"host.name\"\n            - \"input.type\"\n          ignore_missing: true\n\n# Configuration de sortie vers Elasticsearch\noutput.elasticsearch:\n  hosts: [\"elasticsearch:9200\"]\n  # Index avec nom plus explicite et rotation quotidienne\n  index: \"docker-logs-%{+yyyy.MM.dd}\"\n  \n# Configuration de l'index template\nsetup.template.name: \"docker-logs\"\nsetup.template.pattern: \"docker-logs-*\"\nsetup.ilm.enabled: false\n\n# Permettre à Filebeat de créer les index templates et dashboards dans Kibana\nsetup.kibana:\n  host: \"kibana:5601\"\n\n# Niveau de logs de Filebeat lui-même\nlogging.level: info\nlogging.to_files: false\nlogging.to_stderr: true\n\n# Métriques internes de Filebeat (optionnel)\nmonitoring.enabled: false"
 kind: ConfigMap
 metadata:
   annotations:
@@ -8,3 +11,60 @@ metadata:
   labels:
     io.kompose.service: filebeat
   name: filebeat-cm0
+data:
+  filebeat.yml: |-
+    filebeat.inputs:
+      # Collecte des logs des conteneurs Kubernetes
+      - type: container
+        enabled: true
+        paths:
+          - /var/log/containers/*.log
+
+        # Parse JSON si présent
+        json.keys_under_root: true
+        json.add_error_key: true
+        json.message_key: log
+
+        processors:
+          # Ajouter les métadonnées Kubernetes (pod, namespace, labels)
+          - add_kubernetes_metadata:
+              in_cluster: true
+              host: "https://kubernetes.default.svc:443"
+              matchers:
+                - logs_path:
+                    patterns:
+                      - '/var/log/containers/'
+          # Ajouter des champs personnalisés
+          - add_fields:
+              target: ''
+              fields:
+                environment: production
+                project: sae-ecommerce
+          # Nettoyer les champs inutiles
+          - drop_fields:
+              fields:
+                - "agent.ephemeral_id"
+                - "agent.id"
+                - "ecs.version"
+                - "host.name"
+                - "input.type"
+              ignore_missing: true
+
+    # Sortie vers Elasticsearch
+    output.elasticsearch:
+      hosts: ["http://elasticsearch:9200"]
+      index: "docker-logs-%{+yyyy.MM.dd}"
+
+    setup.template.name: "docker-logs"
+    setup.template.pattern: "docker-logs-*"
+    setup.ilm.enabled: false
+
+    # Configuration pour Kibana
+    setup.kibana:
+      host: "http://kibana:5601"
+
+    logging.level: info
+    logging.to_files: false
+    logging.to_stderr: true
+
+    monitoring.enabled: false

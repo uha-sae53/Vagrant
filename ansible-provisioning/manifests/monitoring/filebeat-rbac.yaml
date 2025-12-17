@@ -1,0 +1,40 @@
+## RBAC permet de Filebeat d'accéder aux ressources nécessaires dans le cluster Kubernetes.
+## (RBAC - Role-Based Access Control)
+## Cette configuration crée un ServiceAccount, un ClusterRole et un ClusterRoleBinding pour Filebeat. 
+## ServiceAccount permet à Filebeat de s'authentifier auprès de l'API Kubernetes.
+## ClusterRole définit les permissions nécessaires pour accéder aux ressources comme les pods, namespaces et nodes.
+## ClusterRoleBinding lie le ServiceAccount au ClusterRole, accordant ainsi les permissions définies
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: filebeat
+  labels:
+    io.kompose.service: filebeat
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: filebeat
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: filebeat
+subjects:
+  - kind: ServiceAccount
+    name: filebeat
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: filebeat
+  apiGroup: rbac.authorization.k8s.io
