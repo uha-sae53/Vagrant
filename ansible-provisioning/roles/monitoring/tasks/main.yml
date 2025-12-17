@@ -1,0 +1,201 @@
+---
+# Déploiement de la stack de monitoring ELK (Elasticsearch, Logstash/Filebeat, Kibana)
+# Ce rôle doit être exécuté APRÈS l'initialisation du master et AVANT ArgoCD
+
+- name: Creer namespace monitoring
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/monitoring-namespace.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: monitoring_namespace
+  failed_when: false
+  changed_when: "'created' in monitoring_namespace.stdout or 'configured' in monitoring_namespace.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Vérifier que le namespace monitoring existe
+  command: kubectl get namespace monitoring
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: namespace_check
+  retries: 5
+  delay: 2
+  until: namespace_check.rc == 0
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+# RBAC Filebeat doit être créé AVANT le DaemonSet
+- name: Appliquer RBAC Filebeat (ServiceAccount, ClusterRole, ClusterRoleBinding)
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/filebeat-rbac.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: filebeat_rbac
+  failed_when: false
+  changed_when: "'created' in filebeat_rbac.stdout or 'configured' in filebeat_rbac.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Appliquer ConfigMap Filebeat
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/filebeat-cm0-configmap.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: filebeat_cm
+  failed_when: false
+  changed_when: "'created' in filebeat_cm.stdout or 'configured' in filebeat_cm.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+# Déployer Elasticsearch en premier (backend de stockage)
+- name: Appliquer PVC Elasticsearch
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/elasticsearch-data-persistentvolumeclaim.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: es_pvc
+  failed_when: false
+  changed_when: "'created' in es_pvc.stdout or 'configured' in es_pvc.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Appliquer Elasticsearch Deployment
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/elasticsearch-deployment.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: es_deployment
+  failed_when: false
+  changed_when: "'created' in es_deployment.stdout or 'configured' in es_deployment.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Appliquer Elasticsearch Service
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/elasticsearch-service.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: es_service
+  failed_when: false
+  changed_when: "'created' in es_service.stdout or 'configured' in es_service.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Attendre que Elasticsearch soit disponible
+  command: kubectl wait --for=condition=available --timeout=300s deployment/elasticsearch -n monitoring
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: wait_es
+  retries: 3
+  delay: 10
+  until: wait_es.rc == 0
+  failed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Vérifier manuellement si Elasticsearch est Running (si wait a échoué)
+  shell: kubectl get pods -n monitoring -l io.kompose.service=elasticsearch -o jsonpath='{.items[0].status.phase}'
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: es_status
+  when: wait_es is defined and wait_es.rc != 0
+  changed_when: false
+
+- name: Afficher le statut Elasticsearch si wait a échoué
+  debug:
+    msg: "Elasticsearch pod status: {{ es_status.stdout }}"
+  when: wait_es is defined and wait_es.rc != 0
+
+# Déployer Filebeat (collecteur de logs)
+- name: Appliquer Filebeat DaemonSet
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/filebeat-deployment.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: filebeat_deployment
+  failed_when: false
+  changed_when: "'created' in filebeat_deployment.stdout or 'configured' in filebeat_deployment.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Appliquer Filebeat Service
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/filebeat-service.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: filebeat_service
+  failed_when: false
+  changed_when: "'created' in filebeat_service.stdout or 'configured' in filebeat_service.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+# Déployer Kibana (interface de visualisation)
+- name: Appliquer Kibana Deployment
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/kibana-deployment.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: kibana_deployment
+  failed_when: false
+  changed_when: "'created' in kibana_deployment.stdout or 'configured' in kibana_deployment.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Appliquer Kibana Service
+  command: kubectl apply -f /vagrant/ansible-provisioning/manifests/monitoring/kibana-service.yaml
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: kibana_service
+  failed_when: false
+  changed_when: "'created' in kibana_service.stdout or 'configured' in kibana_service.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Attendre que tous les deployments monitoring soient disponibles
+  command: kubectl wait --for=condition=available --timeout=300s deployment --all -n monitoring
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: wait_monitoring
+  retries: 2
+  delay: 30
+  until: wait_monitoring.rc == 0
+  failed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Afficher l'état des pods monitoring
+  command: kubectl get pods -n monitoring -o wide
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: monitoring_pods
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Debug - Afficher les pods monitoring
+  debug:
+    var: monitoring_pods.stdout_lines
+
+- name: Vérifier les services monitoring
+  command: kubectl get svc -n monitoring
+  environment:
+    KUBECONFIG: /home/vagrant/.kube/config
+  register: monitoring_services
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Debug - Afficher les services monitoring
+  debug:
+    var: monitoring_services.stdout_lines
+
+- name: Afficher les informations de connexion
+  debug:
+    msg:
+      - "=========================================="
+      - "Stack de Monitoring ELK déployée"
+      - "=========================================="
+      - ""
+      - "Elasticsearch: http://192.168.56.10:9200"
+      - "Kibana: http://192.168.56.10:30561"
+      - ""
+      - "Note: Kibana peut prendre 2-3 minutes pour démarrer complètement"
+      - "Vérifier les pods: kubectl get pods -n monitoring"
+      - ""
+      - "Pour configurer Kibana:"
+      - "1. Accédez à http://192.168.56.10:30561"
+      - "2. Créez un Data View avec le pattern: docker-logs-*"
+      - "3. Timestamp field: @timestamp"
+      - ""

@@ -51,6 +51,15 @@
   roles:
     - k8s-dashboard
 
+# monitoring AVANT argocd
+- name: Installer la stack de monitoring ELK
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - monitoring
+
 # argocd pour le CD
 - name: Installer ArgoCD
   hosts: master
@@ -59,4 +68,3 @@
   
   roles:
     - argocd
-
