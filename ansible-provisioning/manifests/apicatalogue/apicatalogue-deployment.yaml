@@ -35,7 +35,7 @@ spec:
           command: ['sh', '-c', 'until nc -z dbcatalogue 3307; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-catalogue:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           name: apicatalogue
           ports:
             - containerPort: 8001

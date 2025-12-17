@@ -33,7 +33,7 @@ spec:
           command: ['sh', '-c', 'until nc -z dbpanier 6379; do echo waiting for redis; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-panier:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           name: api-panier
           ports:
             - containerPort: 8002

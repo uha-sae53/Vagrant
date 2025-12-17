@@ -35,7 +35,7 @@ spec:
           command: ['sh', '-c', 'until nc -z dbclients 3306; do echo waiting for db; sleep 2; done;']
       containers:
         - image: ghcr.io/uha-sae53/api-clients/client-manager:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           name: apiclients
           ports:
             - containerPort: 8000
