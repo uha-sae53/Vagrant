@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: monitoring
+data:
+  elasticsearch.yml: |
+    cluster.name: "elasticsearch"
+    node.name: "node-1"
+    network.host: 0.0.0.0
+    discovery.type: single-node
+    path.data: /usr/share/elasticsearch/data
+    # Run without security for local/dev only
+    xpack.security.enabled: false
+    # Reduce logging for small VMs
+    logger.org.elasticsearch: INFO
