@@ -7,6 +7,7 @@ metadata:
   labels:
     io.kompose.service: filebeat
   name: filebeat
+  namespace: monitoring
 spec:
   ports:
     - name: "5044"

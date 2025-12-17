@@ -4,6 +4,7 @@ metadata:
   labels:
     io.kompose.service: elasticsearch-data
   name: elasticsearch-data
+  namespace: monitoring
 spec:
   accessModes:
     - ReadWriteOnce
