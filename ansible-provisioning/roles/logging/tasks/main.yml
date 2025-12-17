@@ -1,0 +1,168 @@
+---
+# Deploiement Stack Logging: Loki + Fluent Bit + Grafana
+
+- name: Creer namespace logging
+  command: kubectl create namespace logging
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: logging_namespace
+  failed_when: false
+  changed_when: "'created' in logging_namespace.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Attendre propagation du namespace
+  pause:
+    seconds: 5
+  when: logging_namespace.changed
+
+- name: Verifier que le namespace logging existe
+  command: kubectl get namespace logging
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: namespace_check
+  retries: 5
+  delay: 2
+  until: namespace_check.rc == 0
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+# ========== ETAPE 1: Deployer Loki ==========
+
+- name: Deployer Loki (ConfigMap, StatefulSet, Service)
+  command: kubectl apply -f /vagrant/manifests/logging/loki-values.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: loki_deploy
+  failed_when: false
+  changed_when: "'created' in loki_deploy.stdout or 'configured' in loki_deploy.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Attendre que le pod Loki demarre
+  command: kubectl wait --for=condition=ready pod/loki-0 -n logging --timeout=120s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: loki_ready
+  failed_when: false
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Pause supplementaire pour stabilisation Loki
+  pause:
+    seconds: 10
+  when: loki_ready.rc == 0
+
+- name: Verifier l'etat de Loki
+  command: kubectl get pods -n logging -l app=loki
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: loki_status
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Debug - etat de Loki
+  debug:
+    var: loki_status.stdout_lines
+
+# ========== ETAPE 2: Deployer Fluent Bit + Grafana ==========
+
+- name: Deployer Fluent Bit + Grafana
+  command: kubectl apply -f /vagrant/manifests/logging/fluentbit-grafana.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: fluentbit_grafana
+  failed_when: false
+  changed_when: "'created' in fluentbit_grafana.stdout or 'configured' in fluentbit_grafana.stdout"
+  run_once: true
+  delegate_to: vm-master
+
+- name: Attendre que Grafana demarre
+  command: kubectl wait --for=condition=ready pod -l app=grafana -n logging --timeout=120s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: grafana_ready
+  failed_when: false
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Attendre que Fluent Bit demarre
+  command: kubectl wait --for=condition=ready pod -l app=fluent-bit -n logging --timeout=120s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: fluentbit_ready
+  failed_when: false
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+# ========== VERIFICATIONS FINALES ==========
+
+- name: Afficher l'etat des pods logging
+  command: kubectl get pods -n logging -o wide
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: logging_pods
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Debug - Afficher les pods logging
+  debug:
+    var: logging_pods.stdout_lines
+
+- name: Verifier les services logging
+  command: kubectl get svc -n logging
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: logging_services
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Debug - Afficher les services logging
+  debug:
+    var: logging_services.stdout_lines
+
+- name: Tester la connexion à Loki depuis Grafana
+  command: kubectl exec -n logging deploy/grafana -- curl -s http://loki:3100/ready
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: loki_health
+  failed_when: false
+  changed_when: false
+  run_once: true
+  delegate_to: vm-master
+
+- name: Debug - Sante de Loki
+  debug:
+    msg: "Loki API status: {{ loki_health.stdout }}"
+  when: loki_health.rc == 0
+
+# ========== INFORMATIONS FINALES ==========
+
+- name: Afficher les informations de connexion
+  debug:
+    msg:
+      - "=========================================="
+      - "Stack de Logging deployee avec succès!"
+      - "=========================================="
+      - ""
+      - "Grafana: http://192.168.56.10:30300"
+      - "   - Username: admin"
+      - "   - Password: monmotdepasse"
+      - ""
+      - "Loki: Stockage de logs (accessible depuis Grafana)"
+      - "Fluent Bit: Collecte des logs Kubernetes"
+      - ""
+      - "Dans Grafana > Explore:"
+      - "   - Requête: {job=\"fluentbit\"}"
+      - "   - Requête: {job=\"fluentbit\"} |= \"error\""
+      - ""
+      - "Verifier les pods: kubectl get pods -n logging"
+      - "Verifier Loki: kubectl logs -n logging loki-0"
+      - "=========================================="

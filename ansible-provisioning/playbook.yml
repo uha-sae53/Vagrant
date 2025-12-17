@@ -51,14 +51,14 @@
   roles:
     - k8s-dashboard
 
-# monitoring AVANT argocd
-- name: Installer la stack de monitoring ELK
+# logging
+- name: Installer la stack de Grafana
   hosts: master
   become: yes
   gather_facts: yes
   
   roles:
-    - monitoring
+    - logging
 
 # argocd pour le CD
 - name: Installer ArgoCD
