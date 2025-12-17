@@ -38,14 +38,14 @@ spec:
               mountPath: /usr/share/filebeat/filebeat.yml
               subPath: filebeat.yml
               readOnly: true
-            - name: varlibdocker
-              mountPath: /var/lib/docker/containers
-              readOnly: true
             - name: varlogcontainers
               mountPath: /var/log/containers
               readOnly: true
-            - name: dockersock
-              mountPath: /var/run/docker.sock
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlibcontainerd
+              mountPath: /var/lib/containerd
               readOnly: true
       restartPolicy: Always
       volumes:
@@ -55,15 +55,15 @@ spec:
             items:
               - key: filebeat.yml
                 path: filebeat.yml
-        - name: varlibdocker
-          hostPath:
-            path: /var/lib/docker/containers
-            type: DirectoryOrCreate
         - name: varlogcontainers
           hostPath:
             path: /var/log/containers
             type: DirectoryOrCreate
-        - name: dockersock
+        - name: varlogpods
           hostPath:
-            path: /var/run/docker.sock
-            type: FileOrCreate
+            path: /var/log/pods
+            type: DirectoryOrCreate
+        - name: varlibcontainerd
+          hostPath:
+            path: /var/lib/containerd
+            type: DirectoryOrCreate
