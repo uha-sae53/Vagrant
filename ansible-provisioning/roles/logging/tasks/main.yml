@@ -28,7 +28,7 @@
   run_once: true
   delegate_to: vm-master
 
-# ========== ETAPE 1: Deployer Loki ==========
+# Deployer loki
 
 - name: Deployer Loki (ConfigMap, StatefulSet, Service)
   command: kubectl apply -f /vagrant/manifests/logging/loki-values.yml
@@ -68,7 +68,7 @@
   debug:
     var: loki_status.stdout_lines
 
-# ========== ETAPE 2: Deployer Fluent Bit + Grafana ==========
+# Deployer Fluent Bit + Grafana
 
 - name: Deployer Fluent Bit + Grafana
   command: kubectl apply -f /vagrant/manifests/logging/fluentbit-grafana.yaml
@@ -100,7 +100,7 @@
   run_once: true
   delegate_to: vm-master
 
-# ========== VERIFICATIONS FINALES ==========
+# Tester la connexion à Loki
 
 - name: Tester la connexion à Loki depuis Grafana
   command: kubectl exec -n logging deploy/grafana -- curl -s http://loki:3100/ready
@@ -117,7 +117,7 @@
     msg: "Loki API status: {{ loki_health.stdout }}"
   when: loki_health.rc == 0
 
-# ========== INFORMATIONS FINALES ==========
+# Debug - Infos de connexion
 
 - name: Afficher les informations de connexion
   debug:
