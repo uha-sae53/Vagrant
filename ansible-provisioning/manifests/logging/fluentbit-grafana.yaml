@@ -1,3 +1,13 @@
+###################################################
+############# Volumes et Objets K8s   #############
+###################################################
+
+# - ServiceAccount : Compte de service pour Fluent Bit
+# - ClusterRole : Permissions pour Fluent Bit
+# - ClusterRoleBinding : Attacche le compte de service aux permissions
+# - ConfigMap Fluent Bit : Configuration de Fluent Bit pour envoyer les logs à Loki
+
+
 # Namespace pour la stack
 apiVersion: v1
 kind: Namespace
@@ -43,7 +53,7 @@ roleRef:
 
 ---
 
-# ConfigMap Fluent Bit - MODIFIÉ POUR LOKI
+# ConfigMap Fluent Bit - MODIFIe POUR LOKI
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -95,6 +105,15 @@ data:
         Time_Keep   On
 
 ---
+
+
+
+###################################################
+############# Configurations des Pods #############
+###################################################
+
+
+
 
 # DaemonSet Fluent Bit - AJOUT DES VOLUMES
 apiVersion: apps/v1
@@ -211,7 +230,7 @@ spec:
 
 ---
 
-# Service Grafana (NodePort pour accéder depuis ton PC)
+# Service Grafana (NodePort pour acceder depuis ton PC)
 apiVersion: v1
 kind: Service
 metadata:

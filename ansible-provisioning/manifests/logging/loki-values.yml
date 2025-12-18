@@ -1,4 +1,7 @@
 ---
+
+#### Configuration file from website : https://grafana.com/docs/loki/latest/installation/helm/
+
 # ConfigMap pour la configuration Loki
 apiVersion: v1
 kind: ConfigMap

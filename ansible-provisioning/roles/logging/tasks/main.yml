@@ -34,9 +34,9 @@
   command: kubectl apply -f /vagrant/manifests/logging/loki-values.yml
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  register: loki_deploy
+  register: loki_deploiment
   failed_when: false
-  changed_when: "'created' in loki_deploy.stdout or 'configured' in loki_deploy.stdout"
+  changed_when: "'created' in loki_deploiment.stdout or 'configured' in loki_deploiment.stdout"
   run_once: true
   delegate_to: vm-master
 
@@ -44,16 +44,16 @@
   command: kubectl wait --for=condition=ready pod/loki-0 -n logging --timeout=120s
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  register: loki_ready
+  register: loki_pret
   failed_when: false
   changed_when: false
   run_once: true
   delegate_to: vm-master
 
-- name: Pause supplementaire pour stabilisation Loki
+- name: Pause supplementaire pour setup Loki
   pause:
     seconds: 10
-  when: loki_ready.rc == 0
+  when: loki_pret.rc == 0
 
 - name: Verifier l'etat de Loki
   command: kubectl get pods -n logging -l app=loki
@@ -101,32 +101,6 @@
   delegate_to: vm-master
 
 # ========== VERIFICATIONS FINALES ==========
-
-- name: Afficher l'etat des pods logging
-  command: kubectl get pods -n logging -o wide
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  register: logging_pods
-  changed_when: false
-  run_once: true
-  delegate_to: vm-master
-
-- name: Debug - Afficher les pods logging
-  debug:
-    var: logging_pods.stdout_lines
-
-- name: Verifier les services logging
-  command: kubectl get svc -n logging
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  register: logging_services
-  changed_when: false
-  run_once: true
-  delegate_to: vm-master
-
-- name: Debug - Afficher les services logging
-  debug:
-    var: logging_services.stdout_lines
 
 - name: Tester la connexion à Loki depuis Grafana
   command: kubectl exec -n logging deploy/grafana -- curl -s http://loki:3100/ready
