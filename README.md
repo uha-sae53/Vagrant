@@ -174,9 +174,17 @@ Créez un fichier de définition du réseau :
 cat <<EOF | sudo tee /etc/libvirt/qemu/networks/vagrant-libvirt.xml
 <network>
   <name>vagrant-libvirt</name>
-  <forward mode='nat'/>
-  <bridge name='virbr1' stp='on' delay='0'/>
-  <ip address='192.168.56.1' netmask='255.255.255.0'/>
+  <forward mode='nat'>
+    <nat>
+      <port start='1024' end='65535'/>
+    </nat>
+  </forward>
+  <bridge name='virbr2' stp='on' delay='0'/>
+  <ip address='192.168.56.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.56.2' end='192.168.56.9'/>
+    </dhcp>
+  </ip>
 </network>
 EOF
 ```
