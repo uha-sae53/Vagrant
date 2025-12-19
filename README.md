@@ -121,14 +121,6 @@ ansible --version
 
 Vous devriez voir une version >= 2.9. 
 
-#### Collections Ansible requises
-
-Les collections nécessaires sont installées automatiquement lors du premier `vagrant up`. Si vous souhaitez les installer manuellement : 
-
-```bash
-ansible-galaxy collection install community.general
-ansible-galaxy collection install ansible. posix
-```
 
 ### 6. Installation du serveur NFS (OBLIGATOIRE)
 
