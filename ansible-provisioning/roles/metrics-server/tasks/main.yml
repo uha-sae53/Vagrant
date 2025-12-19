@@ -1,0 +1,111 @@
+---
+# Installation du Metrics Server pour HPA
+# À ajouter dans ansible-provisioning/roles/k8s-master/tasks/main.yml
+# Après l'installation de Flannel
+
+- name: Nettoyer les anciennes ressources Metrics Server si elles existent
+  shell: |
+    kubectl delete clusterrolebinding metrics-server:system:auth-delegator --ignore-not-found=true
+    kubectl delete clusterrolebinding system:metrics-server --ignore-not-found=true
+    kubectl delete clusterrole system:aggregated-metrics-reader --ignore-not-found=true
+    kubectl delete clusterrole system:metrics-server --ignore-not-found=true
+    kubectl delete rolebinding metrics-server-auth-reader -n kube-system --ignore-not-found=true
+    kubectl delete deployment metrics-server -n kube-system --ignore-not-found=true
+    kubectl delete service metrics-server -n kube-system --ignore-not-found=true
+    kubectl delete serviceaccount metrics-server -n kube-system --ignore-not-found=true
+    kubectl delete apiservice v1beta1.metrics.k8s.io --ignore-not-found=true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: cleanup_metrics
+  failed_when: false
+  changed_when: "'deleted' in cleanup_metrics.stdout"
+
+- name: Attendre la suppression complete des ressources
+  pause:
+    seconds: 5
+  when: cleanup_metrics.changed
+
+- name: Installer le Metrics Server
+  command: kubectl apply -f /vagrant/manifests/metrics-server/metrics-server.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_server_install
+  retries: 3
+  delay: 10
+  until: metrics_server_install.rc == 0
+  changed_when: "'created' in metrics_server_install.stdout or 'configured' in metrics_server_install.stdout"
+
+- name: Attendre que le deployment Metrics Server soit disponible
+  command: kubectl wait --for=condition=available --timeout=180s deployment/metrics-server -n kube-system
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_deployment_ready
+  retries: 3
+  delay: 10
+  until: metrics_deployment_ready.rc == 0
+  failed_when: false
+
+- name: Attendre que le pod Metrics Server soit pret
+  command: kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=120s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_pod_ready
+  retries: 3
+  delay: 10
+  until: metrics_pod_ready.rc == 0
+
+- name: Verifier l'APIService Metrics
+  command: kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath='{.status.conditions[?(@.type=="Available")].status}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: apiservice_status
+  retries: 10
+  delay: 5
+  until: apiservice_status.stdout == "True"
+  changed_when: false
+
+- name: Attendre la collecte initiale des metriques
+  pause:
+    seconds: 30
+    prompt: "Attente de la collecte initiale des metriques par le Metrics Server"
+
+- name: Tester la disponibilite des metriques sur les nodes
+  command: kubectl top nodes --no-headers
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_nodes_test
+  retries: 5
+  delay: 10
+  until: metrics_nodes_test.rc == 0
+  failed_when: false
+  changed_when: false
+
+- name: Tester la disponibilite des metriques sur les pods
+  command: kubectl top pods -n kube-system --no-headers
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_pods_test
+  retries: 5
+  delay: 10
+  until: metrics_pods_test.rc == 0
+  failed_when: false
+  changed_when: false
+
+- name: Afficher l'etat du Metrics Server
+  debug:
+    msg:
+      - "=========================================="
+      - "Metrics Server installe avec succes"
+      - "=========================================="
+      - ""
+      - "APIService disponible: {{ 'OUI' if apiservice_status.stdout == 'True' else 'NON' }}"
+      - "Metriques nodes disponibles: {{ 'OUI' if metrics_nodes_test.rc == 0 else 'NON' }}"
+      - "Metriques pods disponibles: {{ 'OUI' if metrics_pods_test.rc == 0 else 'NON' }}"
+      - ""
+      - "Commandes de test:"
+      - "  kubectl top nodes"
+      - "  kubectl top pods -n apps"
+      - "  kubectl get hpa -n apps"
+      - ""
+      - "Les HPA peuvent maintenant fonctionner correctement!"
+      - ""

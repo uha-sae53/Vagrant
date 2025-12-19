@@ -134,14 +134,6 @@
     KUBECONFIG: /etc/kubernetes/admin.conf
   ignore_errors: yes
 
-
-# Installation du calculateur de metriques pour le scheduler
-- name: Installer Metrics Server
-  command: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
-
 # secret pour pull les images depuis github
 # Permet de pull les images privees depuis ghcr.io
 - name: Creer secret ghcr
