@@ -102,7 +102,7 @@
     state: absent
 
 - name: Générer le fichier de configuration containerd
-  command: containerd config default > /etc/containerd/config.toml
+  shell: containerd config default > /etc/containerd/config.toml
   args:
     creates: /etc/containerd/config.toml
   become: true
