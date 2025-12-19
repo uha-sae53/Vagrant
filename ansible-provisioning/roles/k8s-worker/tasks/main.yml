@@ -1,6 +1,5 @@
 ---
 # ansible-provisioning/roles/k8s-worker/tasks/main.yml
-# CORRECTION: Meilleure gestion des workers déjà joints
 
 - name: Verifier si le worker est deja joint au cluster
   stat:
@@ -61,7 +60,7 @@
   debug:
     msg: "{{ join_content.stdout }}"
 
-# CORRECTION ICI: Ne joindre que si pas déjà joint
+
 - name: Joindre le cluster Kubernetes
   shell: bash /vagrant/join.sh
   args:

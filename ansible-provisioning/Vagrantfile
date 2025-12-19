@@ -17,12 +17,6 @@ Vagrant.configure("2") do |config|
       ip: "192.168.56.10",
       libvirt__network_name: "vagrant-libvirt"
     vm.vm.hostname = "master"
-    vm.vm.provision "shell", inline: <<-SHELL
-      apt-get update
-      apt-get install -y qemu-guest-agent
-      systemctl enable qemu-guest-agent
-      systemctl start qemu-guest-agent
-    SHELL
   end
   
   (1..2).each do |i|

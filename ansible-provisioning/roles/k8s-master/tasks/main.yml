@@ -83,11 +83,15 @@
     mode: '0644'
 
 # reseau flannel pour la com entre pods
-- name: Installer Flannel
+# CORRECTION: Utiliser shell avec filtre grep pour ignorer les erreurs AlreadyExists
+- name: Installer Flannel (idempotent)
   become_user: vagrant
-  command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+  shell: |
+    kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml 2>&1 | grep -v "AlreadyExists" || true
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
+  register: flannel_install
+  changed_when: "'created' in flannel_install.stdout or 'configured' in flannel_install.stdout"
 
 
 ######## CONFIGURATION APRES INIT ########
@@ -121,7 +125,6 @@
     dest: /vagrant/.master-ready
 
 # storage local
-# Il permet aux pods de demander du stockage persistant à partir d'un PersistentVolumeClaim (PVC)
 - name: Verifier si local-path est deja installe
   shell: kubectl get storageclass local-path 2>/dev/null
   environment:
@@ -159,17 +162,14 @@
   failed_when: false
 
 # secret pour pull les images depuis github
-# Permet de pull les images privees depuis ghcr.io
 - name: Creer secret ghcr
   shell: |
     set -e
-    # Create or update ghcr secret in namespace 'apps'
     kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
       --docker-server=ghcr.io \
       --docker-username={{ ghcr_username | default('uha-sae53') }} \
       --docker-password='{{ ghcr_token | default("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") }}' \
       --namespace=apps --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
-    # Also ensure the secret exists in 'default' namespace (some manifests use default)
     kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
       --docker-server=ghcr.io \
       --docker-username={{ ghcr_username | default('uha-sae53') }} \
@@ -180,8 +180,7 @@
   ignore_errors: yes
   no_log: true
 
-# configuration du ServiceAccount par defaut pour utiliser le secret ghcr
-# ServiceAccount permet aux pods de pull les images depuis ghcr.io sans avoir a definir le secret dans chaque manifest
+# configuration du ServiceAccount par defaut
 - name: Attendre ServiceAccount default
   command: kubectl get serviceaccount default -n default
   environment:
@@ -197,11 +196,7 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
-# NOTE: Les manifests applicatifs ne sont PAS deployes ici
-# Ils sont geres par ArgoCD via les Applications dans /vagrant/manifests/argocd-apps/
-# Cela evite les conflits de ports et permet le GitOps avec auto-sync
-
-# Creer le namespace apps pour les applications et databases
+# Creer le namespace apps
 - name: Creer namespace apps
   command: kubectl create namespace apps
   environment:
@@ -210,7 +205,7 @@
   failed_when: false
   changed_when: "'created' in namespace_apps.stdout"
 
-# CORRECTION ICI : Utiliser kubectl apply au lieu de kubectl create pour l'idempotence
+# Appliquer les manifests databases
 - name: Appliquer les manifests databases dans apps (idempotent)
   shell: kubectl apply -f /vagrant/manifests/databases/ -n apps --force 2>&1 || true
   environment:
