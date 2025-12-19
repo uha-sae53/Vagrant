@@ -101,6 +101,12 @@
     path: /etc/containerd/config.toml
     state: absent
 
+- name: Générer le fichier de configuration containerd
+  command: containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  become: true
+
 - name: Attendre creation fichier config
   wait_for:
     path: /etc/containerd/config.toml
