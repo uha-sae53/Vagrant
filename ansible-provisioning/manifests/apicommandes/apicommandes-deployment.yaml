@@ -35,6 +35,13 @@ spec:
         - image: ghcr.io/uha-sae53/api-commandes:latest
           imagePullPolicy: Always
           name: apicommandes
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           ports:
             - containerPort: 8003
               protocol: TCP

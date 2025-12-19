@@ -23,6 +23,13 @@ spec:
       containers:
         - image: ghcr.io/uha-sae53/frontend/frontend-manager:latest
           name: frontend
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           ports:
             - containerPort: 8004
               protocol: TCP

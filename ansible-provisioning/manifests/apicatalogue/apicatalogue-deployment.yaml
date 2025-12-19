@@ -37,6 +37,13 @@ spec:
         - image: ghcr.io/uha-sae53/api-catalogue:latest
           imagePullPolicy: Always
           name: apicatalogue
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           ports:
             - containerPort: 8001
               protocol: TCP

@@ -29,4 +29,11 @@ spec:
           ports:
             - containerPort: 5601
               protocol: TCP
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
       restartPolicy: Always

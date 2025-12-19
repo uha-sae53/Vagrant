@@ -18,6 +18,13 @@ spec:
         - name: dbpanier
           image: redis:7.2
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
           ports:
             - containerPort: 6379
               protocol: TCP

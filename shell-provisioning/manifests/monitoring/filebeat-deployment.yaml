@@ -32,6 +32,13 @@ spec:
           ports:
             - containerPort: 5044
               protocol: TCP
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
           volumeMounts:
             - mountPath: /usr/share/filebeat/filebeat.yml
               name: filebeat-cm0
