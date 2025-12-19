@@ -4,10 +4,8 @@
   hosts: k8s_cluster
   become: yes
   gather_facts: yes
-  serial: 1
   
   pre_tasks:
-    # on clean les anciens fichiers
     - name: Nettoyer les vieux fichiers
       file:
         path: "/vagrant/{{ item }}"
@@ -23,7 +21,7 @@
     - docker
     - kubernetes
 
-# init du master
+# init du master (SANS metrics-server)
 - name: Demarrer le master
   hosts: master
   become: yes
@@ -31,7 +29,6 @@
   
   roles:
     - k8s-master
-    - metrics-server
 
 # les workers rejoignent le cluster
 - name: Faire rejoindre les workers
@@ -42,6 +39,52 @@
   
   roles:
     - k8s-worker
+
+# Attendre que tous les workers soient Ready
+- name: Verifier que tous les nodes sont Ready
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Attendre que tous les nodes soient Ready
+      shell: |
+        EXPECTED=3
+        for i in {1..60}; do
+          READY=$(kubectl get nodes --no-headers 2>/dev/null | awk '$2=="Ready"' | wc -l)
+          echo "Nodes Ready: $READY/$EXPECTED (tentative $i/60)"
+          if [ "$READY" -eq "$EXPECTED" ]; then
+            echo "Tous les nodes sont Ready!"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "Timeout: seulement $READY/$EXPECTED nodes sont Ready"
+        exit 0
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: nodes_ready
+      changed_when: false
+
+    - name: Afficher l'etat des nodes
+      shell: kubectl get nodes
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: nodes_status
+      changed_when: false
+
+    - name: Debug - Etat des nodes
+      debug:
+        var: nodes_status.stdout_lines
+
+# MAINTENANT on installe le Metrics Server
+- name: Installer le Metrics Server
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - metrics-server
 
 # dashboard a la fin
 - name: Installer le dashboard

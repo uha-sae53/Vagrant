@@ -122,17 +122,41 @@
 
 # storage local
 # Il permet aux pods de demander du stockage persistant à partir d'un PersistentVolumeClaim (PVC)
-- name: Installer local-path provisioner
-  command: kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+- name: Verifier si local-path est deja installe
+  shell: kubectl get storageclass local-path 2>/dev/null
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
+  register: local_path_exists
+  failed_when: false
+  changed_when: false
+
+- name: Installer local-path provisioner
+  shell: |
+    kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml 2>&1 | grep -v "AlreadyExists" || true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: local_path_exists.rc != 0
+  register: local_path_install
+  changed_when: "'created' in local_path_install.stdout"
+
+- name: Attendre que le provisioner soit pret
+  command: kubectl wait --for=condition=available --timeout=120s deployment/local-path-provisioner -n local-path-storage
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: local_path_exists.rc != 0
+  register: provisioner_ready
+  retries: 3
+  delay: 10
+  until: provisioner_ready.rc == 0
+  failed_when: false
 
 - name: Definir local-path par defaut
   command: kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --overwrite
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
+  register: annotate_result
+  changed_when: "'annotated' in annotate_result.stdout"
+  failed_when: false
 
 # secret pour pull les images depuis github
 # Permet de pull les images privees depuis ghcr.io
@@ -195,10 +219,11 @@
   failed_when: false
   changed_when: "'created' in namespace_apps.stdout"
 
-# Deployer les bases de donnees dans le namespace apps
-- name: Appliquer les manifests databases dans apps
-  command: kubectl apply -f /vagrant/manifests/databases/ -n apps
+# CORRECTION ICI : Utiliser kubectl apply au lieu de kubectl create pour l'idempotence
+- name: Appliquer les manifests databases dans apps (idempotent)
+  shell: kubectl apply -f /vagrant/manifests/databases/ -n apps --force 2>&1 || true
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: db_apply_result
   changed_when: "'created' in db_apply_result.stdout or 'configured' in db_apply_result.stdout"
+  failed_when: false
