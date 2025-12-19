@@ -254,8 +254,8 @@ argocd_repos:
     - { name: api-panier, url: "https://github.com/uha-sae53/api-panier.git" }
     - { name: api-commandes, url: "https://github.com/uha-sae53/api-commandes.git" }
        - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
-```tention :
-
+```
+Attention :
 Le token GitHub doit avoir accès en lecture aux dépôts privés si nécessaire.
 Ce fichier doit être présent et correctement rempli avant de lancer le provisionnement.
 
