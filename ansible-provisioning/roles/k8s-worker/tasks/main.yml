@@ -1,15 +1,40 @@
 ---
-# nettoyer les vieux fichiers k8s si ils existent
-- name: Reset kubeadm si deja joint
-  command: kubeadm reset -f
-  ignore_errors: yes
-  changed_when: false
+# ansible-provisioning/roles/k8s-worker/tasks/main.yml
+# CORRECTION: Meilleure gestion des workers déjà joints
 
-- name: Supprimer dossier kubernetes
-  file:
-    path: /etc/kubernetes
-    state: absent
-  ignore_errors: yes
+- name: Verifier si le worker est deja joint au cluster
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf_exists
+
+- name: Afficher le statut du worker
+  debug:
+    msg: "Worker deja joint: {{ kubelet_conf_exists.stat.exists }}"
+
+# Nettoyer SEULEMENT si le worker n'est PAS déjà joint proprement
+- name: Reset kubeadm si necessaire
+  block:
+    - name: Verifier le statut kubelet
+      command: systemctl is-active kubelet
+      register: kubelet_status
+      failed_when: false
+      changed_when: false
+      when: kubelet_conf_exists.stat.exists
+
+    - name: Reset kubeadm si kubelet est mort ou absent
+      command: kubeadm reset -f
+      when: 
+        - not kubelet_conf_exists.stat.exists or (kubelet_status.rc is defined and kubelet_status.rc != 0)
+      ignore_errors: yes
+      changed_when: true
+
+    - name: Supprimer dossier kubernetes
+      file:
+        path: /etc/kubernetes
+        state: absent
+      when: 
+        - not kubelet_conf_exists.stat.exists or (kubelet_status.rc is defined and kubelet_status.rc != 0)
+      ignore_errors: yes
 
 - name: Attendre que le fichier .master-ready existe
   wait_for:
@@ -22,7 +47,7 @@
     path: /vagrant/join.sh
   register: join_file
 
-- name: echouer si join.sh n'existe pas ou est vide
+- name: Echouer si join.sh n'existe pas ou est vide
   fail:
     msg: "Le fichier join.sh n'existe pas ou est vide!"
   when: not join_file.stat.exists or join_file.stat.size == 0
@@ -36,7 +61,59 @@
   debug:
     msg: "{{ join_content.stdout }}"
 
+# CORRECTION ICI: Ne joindre que si pas déjà joint
 - name: Joindre le cluster Kubernetes
   shell: bash /vagrant/join.sh
   args:
     creates: /etc/kubernetes/kubelet.conf
+  register: join_result
+  failed_when:
+    - join_result.rc != 0
+    - "'already exists in the cluster' not in join_result.stderr"
+  changed_when: "'This node has joined the cluster' in join_result.stdout"
+
+- name: Afficher le resultat de la jonction
+  debug:
+    msg: |
+      {% if join_result.changed %}
+      Worker a rejoint le cluster avec succes
+      {% elif 'already exists' in join_result.stderr %}
+      Worker deja membre du cluster (skip)
+      {% else %}
+      Statut du worker: OK
+      {% endif %}
+
+- name: Verifier que kubelet fonctionne
+  systemd:
+    name: kubelet
+    state: started
+    enabled: yes
+  register: kubelet_start
+
+- name: Attendre que le node soit Ready
+  shell: |
+    export KUBECONFIG=/etc/kubernetes/kubelet.conf
+    for i in {1..60}; do
+      STATUS=$(kubectl get node $(hostname) -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "NotFound")
+      if [ "$STATUS" = "True" ]; then
+        echo "Node is Ready"
+        exit 0
+      fi
+      echo "Waiting for node to be Ready... (attempt $i/60)"
+      sleep 5
+    done
+    echo "Node not Ready after 5 minutes"
+    exit 1
+  register: node_ready
+  failed_when: false
+  changed_when: false
+
+- name: Afficher le statut final du worker
+  debug:
+    msg:
+      - "=========================================="
+      - "Worker {{ ansible_hostname }} Status"
+      - "=========================================="
+      - "Kubelet running: {{ kubelet_start.status.ActiveState == 'active' }}"
+      - "Node Ready: {{ 'Ready' in node_ready.stdout }}"
+      - "=========================================="

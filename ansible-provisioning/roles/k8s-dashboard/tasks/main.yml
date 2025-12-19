@@ -1,4 +1,7 @@
 ---
+# ansible-provisioning/roles/k8s-dashboard/tasks/main.yml
+# CORRECTION: Meilleure gestion de l'idempotence pour le Dashboard
+
 - name: Attendre avant installation Helm
   shell: |
     for i in {1..60}; do
@@ -83,15 +86,25 @@
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
 
-- name: Verifier si le Dashboard est dejà installe
-  shell: helm list -n kubernetes-dashboard | grep kubernetes-dashboard
+# ===== CORRECTION ICI =====
+- name: Verifier si le Dashboard est deja installe
+  shell: helm list -n kubernetes-dashboard --deployed | grep -w kubernetes-dashboard
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
-  register: dashboard_pret
+  register: dashboard_existe
   failed_when: false
   changed_when: false
 
-- name: Deployer le Dashboard Kubernetes avec Helm (avec ressources reduites)
+- name: Supprimer l'ancienne release si elle existe mais est cassee
+  shell: helm uninstall kubernetes-dashboard -n kubernetes-dashboard
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: 
+    - dashboard_existe.rc == 0
+    - dashboard_existe.stdout is search('failed|pending')
+  failed_when: false
+
+- name: Deployer le Dashboard Kubernetes avec Helm
   become_user: vagrant
   command: >
     helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard
@@ -112,11 +125,16 @@
     --timeout=10m
   environment:
     KUBECONFIG: /home/vagrant/.kube/config
-  when: dashboard_pret.rc != 0
+  register: dashboard_deploy
+  failed_when: 
+    - dashboard_deploy.rc != 0
+    - "'another operation' not in dashboard_deploy.stderr"
+  changed_when: "'upgraded' in dashboard_deploy.stdout or 'installed' in dashboard_deploy.stdout"
 
 - name: Attendre 30 secondes avant de verifier le deploiement
   pause:
     seconds: 30
+  when: dashboard_deploy.changed
 
 - name: Verifier l'etat des pods du Dashboard
   command: kubectl get pods -n kubernetes-dashboard
@@ -139,24 +157,6 @@
   until: dash_att.rc == 0
   ignore_errors: yes
 
-- name: Verifier manuellement si le pod Kong est Running (si wait a echoue)
-  shell: kubectl get pods -n kubernetes-dashboard -l app.kubernetes.io/name=kong -o jsonpath='{.items[0].status.phase}'
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  register: kong_status
-  when: dash_att.failed is defined and dash_att.failed
-  changed_when: false
-
-- name: Afficher le statut Kong si wait a echoue
-  debug:
-    msg: "Kong pod status: {{ kong_status.stdout }}"
-  when: dash_att.failed is defined and dash_att.failed
-
-- name: Continuer meme si Kong n'est pas completement ready (warn)
-  debug:
-    msg: "Le Dashboard peut prendre quelques minutes supplementaires pour etre completement operationnel"
-  when: dash_att.failed is defined and dash_att.failed
-
 - name: Configurer le service en NodePort
   command: >
     kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard-kong-proxy -p '{"spec": {"type": "NodePort", "ports": [{"name": "kong-proxy-tls", "port": 443, "targetPort": 8443, "nodePort": 30443}]}}'
@@ -165,16 +165,6 @@
   register: patch_dashboard_pod
   failed_when: false
   changed_when: "'patched' in patch_dashboard_pod.stdout or 'configured' in patch_dashboard_pod.stdout"
-
-- name: Verifier le service
-  command: kubectl -n kubernetes-dashboard get svc kubernetes-dashboard-kong-proxy
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  changed_when: false
-
-
-###### CONFIGURATION ACCES DASHBOARD ######
-#### Source : https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/ ####
 
 - name: Creer le ServiceAccount admin-user
   command: kubectl create serviceaccount admin-user -n kubernetes-dashboard
@@ -209,9 +199,4 @@
       - "URL d'acces : https://192.168.56.10:30443"
       - ""
       - "Token : {{ dashboard_token.stdout }}"
-      - ""
-      - "Note: Si le Dashboard n'est pas immediatement accessible,"
-      - "attendez 2-3 minutes que tous les pods soient completement demarres."
-      - ""
-      - "Verifier l'etat: vagrant ssh vm-master -c 'kubectl get pods -n kubernetes-dashboard'"
       - ""
