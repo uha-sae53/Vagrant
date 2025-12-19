@@ -241,7 +241,7 @@ Pour que le rôle ArgoCD fonctionne correctement, vous devez configurer les acc�
 
 ansible-provisioning/roles/argocd/vars/main.yml
 Exemple de contenu :
-
+```bash
 github_username: "votre_nom_utilisateur_github"
 github_token: "votre_token_github_personnel"
 github_email: "votre_email_github"
@@ -253,8 +253,8 @@ argocd_repos:
     - { name: api-catalogue, url: "https://github.com/uha-sae53/api-catalogue.git" }
     - { name: api-panier, url: "https://github.com/uha-sae53/api-panier.git" }
     - { name: api-commandes, url: "https://github.com/uha-sae53/api-commandes.git" }
-    - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
-Attention :
+       - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
+```tention :
 
 Le token GitHub doit avoir accès en lecture aux dépôts privés si nécessaire.
 Ce fichier doit être présent et correctement rempli avant de lancer le provisionnement.
