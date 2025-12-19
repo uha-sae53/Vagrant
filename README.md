@@ -226,12 +226,27 @@ Après avoir installé KVM/libvirt et configuré le réseau, il est recommandé 
 sudo reboot
 ```
 
-## Configuration de ArgoCD
+### Installation et vérifications Git
+
+Installer Git
+```bash
+sudo apt install git -y
+```
+Cloner le repository
+```bash
+https://github.com/uha-sae53/Vagrant.git && cd Vagrant/
+```
+
+# Configuration de ArgoCD
 
 Configuration d'ArgoCD (fichier vars/main.yml)
 Pour que le rôle ArgoCD fonctionne correctement, vous devez configurer les accès à vos dépôts GitHub et déclarer les repositories à synchroniser dans le fichier :
 
-ansible-provisioning/roles/argocd/vars/main.yml
+ Copier le fichier :
+```bash
+cp ansible-provisioning/roles/argocd/vars/main.temp ansible-provisioning/roles/argocd/vars/main.yml
+```
+
 Exemple de contenu :
 ```bash
 github_username: "votre_nom_utilisateur_github"
@@ -245,7 +260,7 @@ argocd_repos:
     - { name: api-catalogue, url: "https://github.com/uha-sae53/api-catalogue.git" }
     - { name: api-panier, url: "https://github.com/uha-sae53/api-panier.git" }
     - { name: api-commandes, url: "https://github.com/uha-sae53/api-commandes.git" }
-       - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
+    - { name: api-clients, url: "https://github.com/uha-sae53/api-clients.git" }
 ```
 Attention :
 Le token GitHub doit avoir accès en lecture aux dépôts privés si nécessaire.
