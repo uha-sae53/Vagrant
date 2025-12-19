@@ -234,7 +234,7 @@ sudo apt install git -y
 ```
 Cloner le repository
 ```bash
-https://github.com/uha-sae53/Vagrant.git && cd Vagrant/
+git clone https://github.com/uha-sae53/Vagrant.git && cd Vagrant/
 ```
 
 # Configuration de ArgoCD
