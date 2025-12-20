@@ -58,6 +58,15 @@
   roles:
     - logging
 
+# metrics-server et HPA
+- name: Installer Metrics Server et HPA
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - metrics-server
+
 # argocd pour le CD
 - name: Installer ArgoCD
   hosts: master

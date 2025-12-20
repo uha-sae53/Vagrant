@@ -1,0 +1,85 @@
+---
+# ansible-provisioning/roles/metrics-server/tasks/main.yml
+
+- name: Verifier si Metrics Server est deja installe
+  shell: kubectl get deployment metrics-server -n kube-system 2>/dev/null
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_server_exists
+  failed_when: false
+  changed_when: false
+
+- name: Installer Metrics Server
+  shell: |
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: metrics_server_exists.rc != 0
+  register: metrics_server_install
+  changed_when: "'created' in metrics_server_install.stdout"
+
+- name: Patcher Metrics Server pour ignorer les certificats TLS (dev uniquement)
+  shell: |
+    kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  when: metrics_server_exists.rc != 0
+  register: metrics_patch
+  failed_when: false
+  changed_when: "'patched' in metrics_patch.stdout"
+
+- name: Attendre que Metrics Server soit prêt
+  command: kubectl wait --for=condition=available --timeout=180s deployment/metrics-server -n kube-system
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_ready
+  retries: 3
+  delay: 10
+  until: metrics_ready.rc == 0
+
+- name: Verifier que Metrics Server fonctionne
+  shell: kubectl top nodes
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metrics_test
+  retries: 5
+  delay: 10
+  until: metrics_test.rc == 0
+  changed_when: false
+
+- name: Creer le repertoire pour les manifests HPA
+  file:
+    path: /vagrant/manifests/hpa
+    state: directory
+    mode: '0755'
+
+- name: Copier les manifests HPA
+  copy:
+    src: "{{ item }}"
+    dest: /vagrant/manifests/hpa/
+    mode: '0644'
+  with_fileglob:
+    - /vagrant/manifests/hpa/*.yaml
+
+- name: Appliquer les HPA
+  shell: kubectl apply -f /vagrant/manifests/hpa/ -n apps 2>&1 | grep -v "unchanged" || true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: hpa_application
+  changed_when: "'created' in hpa_application.stdout or 'configured' in hpa_application.stdout"
+
+- name: Afficher les informations HPA
+  debug:
+    msg:
+      - "=========================================="
+      - "Metrics Server et HPA configures"
+      - "=========================================="
+      - ""
+      - "Commandes utiles:"
+      - "  kubectl top nodes"
+      - "  kubectl top pods -n apps"
+      - "  kubectl get hpa -n apps"
+      - "  kubectl describe hpa <nom> -n apps"
+      - ""
+      - "Seuils de scaling: CPU > 70% ou RAM > 80%"
+      - "=========================================="

@@ -125,6 +125,7 @@
     dest: /vagrant/.master-ready
 
 # storage local
+# Il permet aux pods de demander du stockage persistant à partir d'un PersistentVolumeClaim (PVC)
 - name: Verifier si local-path est deja installe
   shell: kubectl get storageclass local-path 2>/dev/null
   environment:
