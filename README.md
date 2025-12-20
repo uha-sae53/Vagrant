@@ -44,7 +44,7 @@ Le répertoire `shell-provisioning/` contient l'ancienne architecture basée sur
 
 ```bash
 su -
-usermod -aG sudo $(whoami)
+usermod -aG sudo <user>
 ```
 
 ## 1. Installation de GCC et outils de compilation
