@@ -37,11 +37,11 @@ spec:
           name: api-panier
           resources:
             requests:
-              cpu: "150m"
-              memory: "192Mi"
-            limits:
-              cpu: "300m"
+              cpu: "200m"
               memory: "256Mi"
+            limits:
+              cpu: "400m"
+              memory: "512Mi"
           ports:
             - containerPort: 8002
               protocol: TCP
