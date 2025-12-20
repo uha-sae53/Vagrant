@@ -46,6 +46,7 @@ Le répertoire `shell-provisioning/` contient l'ancienne architecture basée sur
 su -
 usermod -aG sudo <user>
 ```
+**Nécessite un reboot de la machine !**
 
 ## 1. Installation de GCC et outils de compilation
 
