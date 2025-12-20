@@ -6,6 +6,8 @@ Répertoire des Vagrantfile pour l'infrastructure du projet SAE e-commerce.
 
 Toutes les opérations décrites dans ce guide doivent être réalisées sur un environnement **Debian** disposant d'au moins **16 Go de RAM**. Cette configuration est recommandée pour garantir des performances optimales lors du déploiement de l'infrastructure. 
 
+**Note** : Il peut y avoir des erreurs durant le runtime du playbook Ansible, elles ne seront pas forcement problèmatique si elles contiennent des **" already exists", "stderr_lines": " ou "fatal: [vm-master]: FAILED! => {"censored": "the output has been hidden due to the fact that 'no_log: true' was specified for this result", "changed": false}"**. Il s'agit d'un problème de temporisation Ansible (voir Issues) et d'affichage d'un secret donc de sécurité.
+
 ## Objectif
 
 Ce projet permet de déployer automatiquement une infrastructure composée de 3 machines virtuelles formant un cluster Kubernetes, en utilisant **Ansible** pour le provisioning automatisé. 
@@ -40,15 +42,7 @@ Le répertoire `shell-provisioning/` contient l'ancienne architecture basée sur
 
 ## Installation des prérequis
 
-### 0. Ajouter l'utilisateur chez les sudoers
-
-```bash
-su -
-usermod -aG sudo <user>
-```
-**Nécessite un reboot de la machine !**
-
-## 1. Installation de GCC et outils de compilation
+### 1. Installation de GCC et outils de compilation
 
 ```bash
 sudo apt update
