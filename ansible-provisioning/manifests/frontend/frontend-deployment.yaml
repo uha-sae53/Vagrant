@@ -28,8 +28,8 @@ spec:
           name: frontend
           resources:
             requests:
-              cpu: "100m"
-              memory: "256Mi"
+              cpu: "200m"
+              memory: "384Mi"
             limits:
               cpu: "500m"
               memory: "512Mi"
