@@ -40,7 +40,14 @@ Le répertoire `shell-provisioning/` contient l'ancienne architecture basée sur
 
 ## Installation des prérequis
 
-### 1. Installation de GCC et outils de compilation
+### 0. Ajouter l'utilisateur chez les sudoers
+
+```bash
+su -
+usermod -aG sudo $(whoami)
+```
+
+## 1. Installation de GCC et outils de compilation
 
 ```bash
 sudo apt update
