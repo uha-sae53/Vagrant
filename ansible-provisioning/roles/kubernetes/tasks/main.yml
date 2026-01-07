@@ -89,9 +89,3 @@
   apt:
     name: git
     state: present
-
-# login sur le registre github
-- name: Login ghcr
-  shell: echo "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" | docker login ghcr.io -u uha-sae53 --password-stdin
-  ignore_errors: yes
-  no_log: true

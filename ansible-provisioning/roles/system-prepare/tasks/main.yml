@@ -58,16 +58,3 @@
   until: git_installation is success # réessayer si échec
   retries: 3
   delay: 10
-
-# login sur ghcr.io si docker est la
-- name: Check docker
-  command: which docker
-  register: docker_check
-  failed_when: false
-  changed_when: false
-
-- name: Login ghcr
-  shell: echo "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" | docker login ghcr.io -u uha-sae53 --password-stdin
-  when: docker_check.rc == 0
-  ignore_errors: yes
-  no_log: true

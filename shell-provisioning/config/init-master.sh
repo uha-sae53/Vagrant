@@ -45,23 +45,11 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml || true
 kubectl annotate storageclass local-path storageclass.kubernetes.io/is-default-class=true --overwrite || true
 
-echo "[Master] Création du secret d'accès au registre GHCR"
-kubectl create secret docker-registry ghcr-cred \
-	--docker-server=ghcr.io \
-	--docker-username=uha-sae53 \
-	--docker-password='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' \
-	--namespace=default || true
-
 echo "[Master] Attente que le ServiceAccount default soit créé..."
 until kubectl get serviceaccount default -n default >/dev/null 2>&1; do
 	echo "[Master] ServiceAccount default pas encore disponible, attente..."
 	sleep 2
 done
-
-echo "[Master] Attachement du secret au ServiceAccount par défaut"
-kubectl patch serviceaccount default \
-	-p '{"imagePullSecrets":[{"name":"ghcr-cred"}]}' \
-	--namespace=default
 
 echo "[Master] Attente des workers en Ready avant déploiement des manifests..."
 ATTEMPTS=0

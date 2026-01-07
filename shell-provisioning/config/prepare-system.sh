@@ -26,11 +26,5 @@ fi
 
 echo "[Systeme] Configuration de git et du registre..."
 sudo apt install -y git
-if command -v docker >/dev/null 2>&1; then
-	echo "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" | docker login ghcr.io -u uha-sae53 --password-stdin || true
-else
-	echo "[Systeme] Docker non disponible, saut du login au registre."
-fi
 
 echo "[Systeme] Preparation terminee"
-

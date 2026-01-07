@@ -162,24 +162,6 @@
   changed_when: "'annotated' in annotate_result.stdout"
   failed_when: false
 
-# secret pour pull les images depuis github
-- name: Creer secret ghcr
-  shell: |
-    set -e
-    kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
-      --docker-server=ghcr.io \
-      --docker-username={{ ghcr_username | default('uha-sae53') }} \
-      --docker-password='{{ ghcr_token | default("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") }}' \
-      --namespace=apps --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
-    kubectl --kubeconfig=/etc/kubernetes/admin.conf create secret docker-registry ghcr-secret \
-      --docker-server=ghcr.io \
-      --docker-username={{ ghcr_username | default('uha-sae53') }} \
-      --docker-password='{{ ghcr_token | default("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") }}' \
-      --namespace=default --dry-run=client -o yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
-  ignore_errors: yes
-  no_log: true
 
 # configuration du ServiceAccount par defaut
 - name: Attendre ServiceAccount default
@@ -192,10 +174,6 @@
   delay: 2
   changed_when: false
 
-- name: Attacher secret au SA
-  command: kubectl patch serviceaccount default -p '{"imagePullSecrets":[{"name":"ghcr-cred"}]}' --namespace=default
-  environment:
-    KUBECONFIG: /etc/kubernetes/admin.conf
 
 # Creer le namespace apps
 - name: Creer namespace apps

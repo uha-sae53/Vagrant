@@ -32,7 +32,5 @@ fi
 
 echo "[Systeme] Configuration de git et du registre..."
 sudo apt install git -y
-echo "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" | docker login ghcr.io -u uha-sae53 --password-stdin
-
 
 echo "[K8s] Installation terminee"
